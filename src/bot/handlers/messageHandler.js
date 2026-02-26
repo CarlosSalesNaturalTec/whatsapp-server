@@ -14,11 +14,48 @@
  *
  * Features implementadas neste arquivo:
  * - feat-017: Implementar handler messages.upsert
+ * - feat-018: Implementar extração do corpo do texto da mensagem
  *
  * Criado em: 2026-02-26
  */
 
 import logger from '../../utils/logger.js';
+
+// -----------------------------------------------------------------
+// Utilitários de parsing de mensagem
+// -----------------------------------------------------------------
+
+/**
+ * Extrai o corpo de texto de uma mensagem WhatsApp recebida.
+ *
+ * O Baileys representa o conteúdo de uma mensagem em campos distintos
+ * dependendo do tipo de envio:
+ *
+ * - `msg.message.conversation`: mensagem de texto simples enviada diretamente,
+ *   sem formatação especial, sem reply e sem contexto adicional.
+ *
+ * - `msg.message.extendedTextMessage.text`: mensagem de texto com formatação
+ *   (negrito, itálico, tachado), mensagem enviada como reply a outra mensagem,
+ *   ou mensagem com link preview. O Baileys usa este campo quando há qualquer
+ *   metadado adicional além do texto puro.
+ *
+ * Se nenhum dos campos estiver presente (mídia, sticker, localização, etc.),
+ * retorna string vazia — o caller decide como tratar mensagens sem texto.
+ *
+ * @param {object} msg - Objeto de mensagem do evento messages.upsert
+ * @returns {string} Corpo de texto da mensagem, ou string vazia se não for mensagem de texto
+ *
+ * @example
+ * const body = extractMessageBody(msg);
+ * if (body === '') return; // descarta mensagens sem texto
+ */
+function extractMessageBody(msg) {
+  return (
+    msg.message?.conversation ||
+    msg.message?.extendedTextMessage?.text ||
+    ''
+  );
+}
 
 /**
  * Registra o listener de mensagens recebidas no socket WhatsApp.
@@ -78,7 +115,14 @@ export function registerMessageHandler(sock) {
        */
       const jid = msg.key.remoteJid;
 
-      logger.debug({ jid }, '[MessageHandler] Mensagem recebida — iniciando processamento');
+      /**
+       * Corpo de texto extraído da mensagem.
+       * String vazia se a mensagem for de outro tipo (mídia, sticker, etc.).
+       * A extração suporta mensagens simples e mensagens com reply/formatação.
+       */
+      const body = extractMessageBody(msg);
+
+      logger.debug({ jid, bodyLength: body.length }, '[MessageHandler] Mensagem recebida — corpo extraído');
     }
   });
 
