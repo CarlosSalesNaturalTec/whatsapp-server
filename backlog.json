@@ -1,0 +1,484 @@
+{
+  "projeto": {
+    "nome": "WhatsApp Server + Landing Page",
+    "versao": "0.1.0",
+    "descricao": "Servidor Node.js monolítico que gerencia um bot WhatsApp via Baileys v7 com sessão no Google Secret Manager e serve uma Landing Page React, hospedado em GCP Compute Engine.",
+    "dataGeracao": "2026-02-25"
+  },
+  "statusDisponiveis": [
+    "Não Iniciada",
+    "Em Andamento",
+    "Concluída",
+    "Bloqueada"
+  ],
+  "grupos": [
+    {
+      "id": "grupo-1",
+      "nome": "Setup e Infraestrutura — Backend",
+      "descricao": "Inicialização do projeto Node.js, configuração de dependências, estrutura de pastas e ambiente.",
+      "prioridade": "alta",
+      "features": [
+        {
+          "id": "feat-001",
+          "titulo": "Inicializar projeto Node.js com ESM",
+          "descricao": "Criar o package.json raiz com 'type': 'module', definir scripts (start, dev), configurar .gitignore com exclusões obrigatórias (node_modules, .env, frontend/dist, arquivos de sessão Baileys).",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": [],
+          "status": "Não Iniciada",
+          "tags": ["setup", "config", "esm"],
+          "artefatos": [
+            "package.json",
+            ".gitignore"
+          ]
+        },
+        {
+          "id": "feat-002",
+          "titulo": "Instalar dependências do backend",
+          "descricao": "Instalar via npm: baileys, express, pino, @hapi/boom, node-cache, @google-cloud/secret-manager. Verificar que package-lock.json está correto e commitar.",
+          "estimativa": "20min",
+          "prioridade": "alta",
+          "dependencias": ["feat-001"],
+          "status": "Não Iniciada",
+          "tags": ["setup", "dependencies"],
+          "artefatos": [
+            "package.json",
+            "package-lock.json"
+          ]
+        },
+        {
+          "id": "feat-003",
+          "titulo": "Criar estrutura de pastas do backend",
+          "descricao": "Criar manualmente os diretórios: src/bot/auth/, src/bot/handlers/, src/server/routes/. Criar arquivos .gitkeep onde necessário para que a estrutura seja versionada.",
+          "estimativa": "15min",
+          "prioridade": "alta",
+          "dependencias": ["feat-001"],
+          "status": "Não Iniciada",
+          "tags": ["setup", "estrutura"],
+          "artefatos": [
+            "src/bot/auth/",
+            "src/bot/handlers/",
+            "src/server/routes/"
+          ]
+        },
+        {
+          "id": "feat-004",
+          "titulo": "Configurar variáveis de ambiente",
+          "descricao": "Criar o arquivo .env.example com todas as variáveis necessárias documentadas: NODE_ENV, GCP_PROJECT_ID, SECRET_NAME, PHONE_NUMBER, PORT, LOG_LEVEL. Adicionar descrição de cada variável como comentário.",
+          "estimativa": "20min",
+          "prioridade": "alta",
+          "dependencias": ["feat-001"],
+          "status": "Não Iniciada",
+          "tags": ["setup", "config", "env"],
+          "artefatos": [
+            ".env.example"
+          ]
+        },
+        {
+          "id": "feat-005",
+          "titulo": "Implementar módulo de logger (pino)",
+          "descricao": "Criar src/utils/logger.js que exporta uma instância pino configurada com o nível de log proveniente da variável de ambiente LOG_LEVEL (padrão: 'warn'). Este módulo será importado por todos os outros.",
+          "estimativa": "20min",
+          "prioridade": "alta",
+          "dependencias": ["feat-002", "feat-003"],
+          "status": "Não Iniciada",
+          "tags": ["setup", "logger", "pino"],
+          "artefatos": [
+            "src/utils/logger.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-2",
+      "nome": "Servidor HTTP — Express",
+      "descricao": "Configuração do servidor Express para servir a Landing Page React e expor o endpoint de health check.",
+      "prioridade": "alta",
+      "features": [
+        {
+          "id": "feat-006",
+          "titulo": "Criar e configurar app Express",
+          "descricao": "Criar src/server/index.js que inicializa o app Express, aplica middlewares básicos (json, urlencoded) e exporta a função startServer(port). A porta é lida de process.env.PORT com fallback para 3000.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-002", "feat-003"],
+          "status": "Não Iniciada",
+          "tags": ["server", "express", "http"],
+          "artefatos": [
+            "src/server/index.js"
+          ]
+        },
+        {
+          "id": "feat-007",
+          "titulo": "Implementar rota GET /health",
+          "descricao": "Criar src/server/routes/health.js com endpoint GET /health que retorna JSON {status: 'ok', timestamp: ISO8601, uptime: process.uptime()}. Registrar a rota no app Express. Não expor estado da sessão WhatsApp.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-006"],
+          "status": "Não Iniciada",
+          "tags": ["server", "express", "health"],
+          "artefatos": [
+            "src/server/routes/health.js",
+            "src/server/index.js"
+          ]
+        },
+        {
+          "id": "feat-008",
+          "titulo": "Configurar middleware de arquivos estáticos do frontend",
+          "descricao": "No src/server/index.js, adicionar express.static apontando para frontend/dist/. Adicionar fallback catch-all (app.get('*')) que serve o index.html para suporte a client-side routing do React.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-006"],
+          "status": "Não Iniciada",
+          "tags": ["server", "express", "static", "frontend"],
+          "artefatos": [
+            "src/server/index.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-3",
+      "nome": "Google Secret Manager — Integração",
+      "descricao": "Implementação do auth state customizado do Baileys que persiste a sessão WhatsApp no Google Secret Manager.",
+      "prioridade": "alta",
+      "features": [
+        {
+          "id": "feat-009",
+          "titulo": "Implementar getSecretValue (leitura do secret)",
+          "descricao": "Criar função getSecretValue(secretName, projectId) em src/bot/auth/secretManagerAuthState.js. Deve usar SecretManagerServiceClient para acessar a versão mais recente do secret. Retornar null se o secret não existir (código de erro NOT_FOUND = 5).",
+          "estimativa": "45min",
+          "prioridade": "alta",
+          "dependencias": ["feat-002", "feat-003", "feat-005"],
+          "status": "Não Iniciada",
+          "tags": ["gcp", "secret-manager", "auth"],
+          "artefatos": [
+            "src/bot/auth/secretManagerAuthState.js"
+          ]
+        },
+        {
+          "id": "feat-010",
+          "titulo": "Implementar saveSecretValue (escrita do secret)",
+          "descricao": "Criar função saveSecretValue(secretName, projectId, payload) no mesmo arquivo. Deve adicionar nova versão ao secret existente. Se o secret não existir (NOT_FOUND), criá-lo automaticamente antes de adicionar a versão.",
+          "estimativa": "45min",
+          "prioridade": "alta",
+          "dependencias": ["feat-009"],
+          "status": "Não Iniciada",
+          "tags": ["gcp", "secret-manager", "auth"],
+          "artefatos": [
+            "src/bot/auth/secretManagerAuthState.js"
+          ]
+        },
+        {
+          "id": "feat-011",
+          "titulo": "Implementar useSecretManagerAuthState (auth state completo)",
+          "descricao": "Criar e exportar a função assíncrona useSecretManagerAuthState(projectId, secretName). Deve carregar creds do secret (ou inicializar com initAuthCreds se não existir), implementar keys.get e keys.set com persistência, e retornar { state, saveCreds }.",
+          "estimativa": "1h",
+          "prioridade": "alta",
+          "dependencias": ["feat-009", "feat-010"],
+          "status": "Não Iniciada",
+          "tags": ["gcp", "secret-manager", "auth", "baileys"],
+          "artefatos": [
+            "src/bot/auth/secretManagerAuthState.js"
+          ]
+        },
+        {
+          "id": "feat-012",
+          "titulo": "Adicionar cache em memória para keys do auth state",
+          "descricao": "Dentro do useSecretManagerAuthState, implementar cache em memória (objeto JS simples) para as signal keys, evitando leituras excessivas ao Secret Manager. Adicionar debounce de 3 segundos na função saveSecretValue para evitar throttling em rajadas de eventos keys.set.",
+          "estimativa": "45min",
+          "prioridade": "media",
+          "dependencias": ["feat-011"],
+          "status": "Não Iniciada",
+          "tags": ["performance", "secret-manager", "cache"],
+          "artefatos": [
+            "src/bot/auth/secretManagerAuthState.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-4",
+      "nome": "WhatsApp Bot — Conexão e Autenticação",
+      "descricao": "Implementação da conexão WebSocket com o WhatsApp, autenticação por Pairing Code e reconexão automática.",
+      "prioridade": "alta",
+      "features": [
+        {
+          "id": "feat-013",
+          "titulo": "Implementar função connectToWhatsApp com configurações de produção",
+          "descricao": "Criar src/bot/connection.js com a função connectToWhatsApp(). Deve chamar useSecretManagerAuthState, fetchLatestBaileysVersion e makeWASocket com as opções de produção recomendadas: makeCacheableSignalKeyStore, NodeCache para grupos, printQRInTerminal: false, syncFullHistory: false, timeouts configurados.",
+          "estimativa": "1h",
+          "prioridade": "alta",
+          "dependencias": ["feat-005", "feat-011"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "baileys", "conexao"],
+          "artefatos": [
+            "src/bot/connection.js"
+          ]
+        },
+        {
+          "id": "feat-014",
+          "titulo": "Implementar autenticação por Pairing Code",
+          "descricao": "Dentro do handler connection.update em src/bot/connection.js, detectar quando a conexão está em 'connecting' ou quando um QR é recebido (indicativo de que não há sessão) e chamar sock.requestPairingCode(PHONE_NUMBER). Exibir o código gerado no console/log com nível 'info'.",
+          "estimativa": "45min",
+          "prioridade": "alta",
+          "dependencias": ["feat-013"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "baileys", "pairing-code", "auth"],
+          "artefatos": [
+            "src/bot/connection.js"
+          ]
+        },
+        {
+          "id": "feat-015",
+          "titulo": "Implementar handler de reconexão automática",
+          "descricao": "No handler connection.update, tratar o evento 'close': verificar o statusCode do erro via DisconnectReason. Se não for loggedOut (401), agendar reconexão com setTimeout de 5 segundos. Se for loggedOut, logar aviso e NÃO reconectar. Logar o evento 'open' com confirmação de conexão bem-sucedida.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-013"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "baileys", "reconexao", "estabilidade"],
+          "artefatos": [
+            "src/bot/connection.js"
+          ]
+        },
+        {
+          "id": "feat-016",
+          "titulo": "Persistir credenciais no evento creds.update",
+          "descricao": "No connectToWhatsApp, registrar o listener sock.ev.on('creds.update', saveCreds) para garantir que as credenciais atualizadas sejam sempre persistidas no Secret Manager. Este passo é crítico — perder este evento pode corromper a sessão.",
+          "estimativa": "15min",
+          "prioridade": "alta",
+          "dependencias": ["feat-013"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "baileys", "sessao", "secret-manager"],
+          "artefatos": [
+            "src/bot/connection.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-5",
+      "nome": "WhatsApp Bot — Processamento de Mensagens",
+      "descricao": "Implementação da leitura, parsing e resposta automática às mensagens recebidas.",
+      "prioridade": "alta",
+      "features": [
+        {
+          "id": "feat-017",
+          "titulo": "Implementar handler messages.upsert",
+          "descricao": "Criar src/bot/handlers/messageHandler.js com a função registerMessageHandler(sock). Registrar listener sock.ev.on('messages.upsert', callback). Filtrar apenas type === 'notify' (novas mensagens) e ignorar msg.key.fromMe === true (mensagens próprias).",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-013"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "mensagens", "handler"],
+          "artefatos": [
+            "src/bot/handlers/messageHandler.js"
+          ]
+        },
+        {
+          "id": "feat-018",
+          "titulo": "Implementar extração do corpo do texto da mensagem",
+          "descricao": "Dentro do handler, implementar lógica de extração do texto: tentar msg.message?.conversation primeiro (mensagem simples), depois msg.message?.extendedTextMessage?.text (mensagem com formatação/reply). Retornar string vazia se nenhum tipo corresponder.",
+          "estimativa": "20min",
+          "prioridade": "alta",
+          "dependencias": ["feat-017"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "mensagens", "parsing"],
+          "artefatos": [
+            "src/bot/handlers/messageHandler.js"
+          ]
+        },
+        {
+          "id": "feat-019",
+          "titulo": "Implementar detecção do comando #iniciarBot#",
+          "descricao": "No handler de mensagens, verificar se o corpo extraído é exatamente igual a '#iniciarBot#' (comparação direta, case-sensitive, sem trim). Implementar como função utilitária isCommand(body, command) para facilitar adição futura de novos comandos.",
+          "estimativa": "20min",
+          "prioridade": "alta",
+          "dependencias": ["feat-018"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "mensagens", "comando"],
+          "artefatos": [
+            "src/bot/handlers/messageHandler.js"
+          ]
+        },
+        {
+          "id": "feat-020",
+          "titulo": "Implementar envio da resposta 'Bot Iniciado'",
+          "descricao": "Quando o comando #iniciarBot# for detectado, chamar sock.sendMessage(jid, { text: 'Bot Iniciado' }) onde jid é msg.key.remoteJid. Envolver em try/catch e logar sucesso ou falha do envio.",
+          "estimativa": "20min",
+          "prioridade": "alta",
+          "dependencias": ["feat-019"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "mensagens", "resposta-automatica"],
+          "artefatos": [
+            "src/bot/handlers/messageHandler.js"
+          ]
+        },
+        {
+          "id": "feat-021",
+          "titulo": "Implementar logging de mensagens recebidas",
+          "descricao": "Para toda mensagem recebida (não própria), logar: jid do remetente, timestamp e prévia do corpo (até 50 chars). Para o comando #iniciarBot# especificamente, logar também o resultado do envio da resposta (sucesso ou erro com detalhes).",
+          "estimativa": "20min",
+          "prioridade": "media",
+          "dependencias": ["feat-017"],
+          "status": "Não Iniciada",
+          "tags": ["bot", "mensagens", "logging"],
+          "artefatos": [
+            "src/bot/handlers/messageHandler.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-6",
+      "nome": "Entry Point e Orquestração",
+      "descricao": "Arquivo principal que inicializa o servidor HTTP e o bot WhatsApp de forma coordenada.",
+      "prioridade": "alta",
+      "features": [
+        {
+          "id": "feat-022",
+          "titulo": "Criar entry point src/index.js",
+          "descricao": "Criar src/index.js que: (1) importa e chama startServer() do módulo Express, (2) importa e chama connectToWhatsApp() do módulo bot, (3) conecta registerMessageHandler(sock) ao socket retornado. Tratar erros críticos de inicialização com process.exit(1) após log de erro.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-006", "feat-013", "feat-017"],
+          "status": "Não Iniciada",
+          "tags": ["entry-point", "orquestracao"],
+          "artefatos": [
+            "src/index.js"
+          ]
+        },
+        {
+          "id": "feat-023",
+          "titulo": "Configurar PM2 com ecosystem.config.cjs",
+          "descricao": "Criar ecosystem.config.cjs com configuração de produção: nome 'whatsapp-app', script src/index.js, variáveis de ambiente (NODE_ENV, GCP_PROJECT_ID, SECRET_NAME, PHONE_NUMBER, PORT, LOG_LEVEL), max_memory_restart 512M, restart_delay 5000ms, max_restarts 10, paths de log.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-004", "feat-022"],
+          "status": "Não Iniciada",
+          "tags": ["pm2", "deploy", "produção"],
+          "artefatos": [
+            "ecosystem.config.cjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-7",
+      "nome": "Frontend — Landing Page React",
+      "descricao": "Configuração e desenvolvimento da Landing Page em React com Vite e Tailwind CSS.",
+      "prioridade": "media",
+      "features": [
+        {
+          "id": "feat-024",
+          "titulo": "Inicializar projeto React com Vite e Tailwind CSS",
+          "descricao": "Dentro da pasta frontend/, criar projeto React via Vite (npm create vite@latest). Instalar e configurar Tailwind CSS com PostCSS e Autoprefixer. Configurar vite.config.js com build.outDir apontando para 'dist'. Criar frontend/package.json independente.",
+          "estimativa": "45min",
+          "prioridade": "media",
+          "dependencias": ["feat-001"],
+          "status": "Não Iniciada",
+          "tags": ["frontend", "react", "vite", "tailwind", "setup"],
+          "artefatos": [
+            "frontend/package.json",
+            "frontend/vite.config.js",
+            "frontend/tailwind.config.js",
+            "frontend/postcss.config.js",
+            "frontend/index.html",
+            "frontend/src/main.jsx",
+            "frontend/src/App.jsx",
+            "frontend/src/index.css"
+          ]
+        },
+        {
+          "id": "feat-025",
+          "titulo": "Implementar layout base da Landing Page",
+          "descricao": "Criar App.jsx com estrutura de layout responsivo: header fixo com navegação, área main para conteúdo das seções e footer. Aplicar classes Tailwind para responsividade (mobile-first). Garantir que a estrutura HTML seja semanticamente correta.",
+          "estimativa": "1h",
+          "prioridade": "media",
+          "dependencias": ["feat-024"],
+          "status": "Não Iniciada",
+          "tags": ["frontend", "layout", "responsivo"],
+          "artefatos": [
+            "frontend/src/App.jsx",
+            "frontend/src/components/Header.jsx",
+            "frontend/src/components/Footer.jsx"
+          ]
+        },
+        {
+          "id": "feat-026",
+          "titulo": "Implementar seção Hero da Landing Page",
+          "descricao": "Criar componente frontend/src/components/HeroSection.jsx com: título principal, subtítulo descritivo, call-to-action (botão) e imagem/ilustração. Estilizar com Tailwind CSS garantindo boa aparência em mobile e desktop.",
+          "estimativa": "1h30min",
+          "prioridade": "media",
+          "dependencias": ["feat-025"],
+          "status": "Não Iniciada",
+          "tags": ["frontend", "landing-page", "hero"],
+          "artefatos": [
+            "frontend/src/components/HeroSection.jsx",
+            "frontend/src/App.jsx"
+          ]
+        },
+        {
+          "id": "feat-027",
+          "titulo": "Gerar build de produção do frontend e validar integração",
+          "descricao": "Executar npm run build dentro de frontend/ e verificar que frontend/dist/ é gerado corretamente. Adicionar script 'build:frontend' no package.json raiz para facilitar o processo de deploy. Testar que o Express serve o dist/ corretamente acessando http://localhost:PORT.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-008", "feat-025"],
+          "status": "Não Iniciada",
+          "tags": ["frontend", "build", "integração"],
+          "artefatos": [
+            "package.json",
+            "frontend/dist/"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grupo-8",
+      "nome": "Deploy e Operação na GCP",
+      "descricao": "Configuração do ambiente de produção na GCP Compute Engine, permissões IAM e documentação operacional.",
+      "prioridade": "media",
+      "features": [
+        {
+          "id": "feat-028",
+          "titulo": "Configurar permissões IAM no GCP para a Service Account da VM",
+          "descricao": "Documentar e executar os comandos gcloud para conceder à Service Account da VM os roles necessários: roles/secretmanager.secretAccessor e roles/secretmanager.secretVersionAdder. Criar o secret 'whatsapp-baileys-session' no Secret Manager com replication automática.",
+          "estimativa": "30min",
+          "prioridade": "alta",
+          "dependencias": ["feat-004"],
+          "status": "Não Iniciada",
+          "tags": ["gcp", "iam", "secret-manager", "deploy"],
+          "artefatos": [
+            "docs/setup-gcp.md"
+          ]
+        },
+        {
+          "id": "feat-029",
+          "titulo": "Documentar setup inicial da VM (README)",
+          "descricao": "Criar README.md na raiz do projeto com: descrição do projeto, pré-requisitos (Node.js 20, PM2, GCP), passo a passo de instalação na VM (instalação Node, clone do repo, npm install, build frontend, configuração variáveis, PM2 start), e comandos de operação (pm2 reload, logs, status).",
+          "estimativa": "45min",
+          "prioridade": "media",
+          "dependencias": ["feat-022", "feat-023", "feat-027"],
+          "status": "Não Iniciada",
+          "tags": ["documentacao", "deploy", "operacao"],
+          "artefatos": [
+            "README.md"
+          ]
+        },
+        {
+          "id": "feat-030",
+          "titulo": "Validar fluxo completo em produção (smoke test)",
+          "descricao": "Com a aplicação rodando na VM via PM2: (1) verificar GET /health retorna 200, (2) verificar Landing Page carrega no browser, (3) verificar que Pairing Code foi gerado no log ao iniciar sem sessão, (4) após autenticação, enviar #iniciarBot# pelo WhatsApp e confirmar resposta 'Bot Iniciado'.",
+          "estimativa": "1h",
+          "prioridade": "alta",
+          "dependencias": ["feat-022", "feat-023", "feat-027", "feat-028"],
+          "status": "Não Iniciada",
+          "tags": ["teste", "validacao", "produção", "smoke-test"],
+          "artefatos": []
+        }
+      ]
+    }
+  ]
+}
