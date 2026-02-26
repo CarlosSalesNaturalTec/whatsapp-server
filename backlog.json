@@ -343,7 +343,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-006", "feat-013", "feat-017"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["entry-point", "orquestracao"],
           "artefatos": [
             "src/index.js"
