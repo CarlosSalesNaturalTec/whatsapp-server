@@ -14,6 +14,7 @@
  * - Em desenvolvimento local: requer GOOGLE_APPLICATION_CREDENTIALS apontando para chave SA
  *
  * Feature: feat-009 - Implementar getSecretValue (leitura do secret)
+ * Atualizado em: feat-010 - Implementar saveSecretValue (escrita do secret)
  * Criado em: 2026-02-25
  */
 
@@ -78,4 +79,59 @@ async function getSecretValue(secretName, projectId) {
   }
 }
 
-export { getSecretValue };
+// -----------------------------------------------------------------
+// Escrita no Secret Manager
+// -----------------------------------------------------------------
+
+/**
+ * Persiste um novo valor no Google Secret Manager adicionando uma nova versão ao secret.
+ *
+ * Se o secret ainda não existir (primeira execução), ele é criado automaticamente
+ * com política de replicação automática antes de adicionar a versão.
+ * Versões anteriores do secret permanecem acessíveis no GCP para rollback manual.
+ *
+ * @param {string} secretName - Nome do secret no Secret Manager
+ * @param {string} projectId  - ID do projeto GCP
+ * @param {string} payload    - Conteúdo a ser salvo (string UTF-8, geralmente JSON serializado)
+ * @returns {Promise<void>}
+ * @throws {Error} Se ocorrer erro de permissão ou falha inesperada na API GCP
+ *
+ * @example
+ * const payload = JSON.stringify({ creds, keys }, BufferJSON.replacer);
+ * await saveSecretValue('whatsapp-baileys-session', 'meu-projeto', payload);
+ */
+async function saveSecretValue(secretName, projectId, payload) {
+  const parent = `projects/${projectId}/secrets/${secretName}`;
+  const data   = Buffer.from(payload, 'utf8');
+
+  logger.debug({ secretName }, '[SecretManager] Salvando nova versão do secret');
+
+  try {
+    await client.addSecretVersion({ parent, payload: { data } });
+    logger.debug({ secretName }, '[SecretManager] Nova versão do secret salva com sucesso');
+  } catch (err) {
+    if (err.code !== GRPC_NOT_FOUND) {
+      logger.error({ err, secretName, projectId }, '[SecretManager] Erro ao salvar secret');
+      throw err;
+    }
+
+    // Secret não existe — cria com replication automática e então adiciona a versão
+    logger.warn({ secretName, projectId }, '[SecretManager] Secret não existe, criando automaticamente');
+
+    try {
+      await client.createSecret({
+        parent: `projects/${projectId}`,
+        secretId: secretName,
+        secret: { replication: { automatic: {} } },
+      });
+
+      await client.addSecretVersion({ parent, payload: { data } });
+      logger.info({ secretName }, '[SecretManager] Secret criado e primeira versão salva com sucesso');
+    } catch (createErr) {
+      logger.error({ err: createErr, secretName, projectId }, '[SecretManager] Erro ao criar secret');
+      throw createErr;
+    }
+  }
+}
+
+export { getSecretValue, saveSecretValue };
