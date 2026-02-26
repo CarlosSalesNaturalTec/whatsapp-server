@@ -13,11 +13,13 @@
  * Features implementadas neste arquivo:
  * - feat-013: Implementar função connectToWhatsApp com configurações de produção
  * - feat-014: Implementar autenticação por Pairing Code
+ * - feat-015: Implementar handler de reconexão automática
  *
  * Criado em: 2026-02-26
  */
 
 import makeWASocket, {
+  DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   Browsers,
@@ -253,7 +255,13 @@ async function connectToWhatsApp() {
    * @returns {Promise<void>}
    */
   sock.ev.on('connection.update', async (update) => {
-    const { connection, qr } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    // ---------------------------------------------------------------
+    // Pairing Code — feat-014
+    // Solicitado apenas quando não há sessão registrada e ainda não foi
+    // pedido neste ciclo. Disparado em 'connecting' ou ao receber QR.
+    // ---------------------------------------------------------------
 
     const shouldRequestPairing =
       (connection === 'connecting' || !!qr) &&
@@ -285,6 +293,52 @@ async function connectToWhatsApp() {
         // Redefine a flag para permitir nova tentativa no próximo evento de conexão
         pairingCodeRequested = false;
       }
+    }
+
+    // ---------------------------------------------------------------
+    // Conexão encerrada — feat-015
+    // Verifica o motivo e decide se deve ou não reconectar.
+    // ---------------------------------------------------------------
+
+    if (connection === 'close') {
+      /**
+       * O Baileys encapsula o erro de desconexão em um objeto Boom (@hapi/boom),
+       * cujo statusCode HTTP representa o motivo do encerramento.
+       * DisconnectReason.loggedOut === 401 indica que o usuário desconectou
+       * o dispositivo manualmente no WhatsApp — não é seguro reconectar
+       * automaticamente, pois a sessão foi revogada.
+       */
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+
+      if (isLoggedOut) {
+        logger.warn(
+          { statusCode },
+          '[Connection] Sessão encerrada pelo WhatsApp (loggedOut / 401). ' +
+          'Reconexão automática desabilitada. ' +
+          'Para reconectar, reinicie o servidor e insira um novo Pairing Code.'
+        );
+      } else {
+        logger.warn(
+          { statusCode },
+          '[Connection] Conexão encerrada inesperadamente — reconectando em 5s...'
+        );
+        /**
+         * Aguarda 5 segundos antes de reconectar para evitar loop de reconexão
+         * imediata em casos de instabilidade de rede ou throttling do WhatsApp.
+         * O setTimeout não bloqueia o event loop — a aplicação permanece responsiva.
+         */
+        setTimeout(connectToWhatsApp, 5_000);
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Conexão estabelecida — feat-015
+    // Confirmação de que o WebSocket está ativo e autenticado.
+    // ---------------------------------------------------------------
+
+    if (connection === 'open') {
+      logger.info('[Connection] Conectado ao WhatsApp com sucesso!');
     }
   });
 
