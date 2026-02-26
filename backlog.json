@@ -39,7 +39,7 @@
           "estimativa": "20min",
           "prioridade": "alta",
           "dependencias": ["feat-001"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["setup", "dependencies"],
           "artefatos": [
             "package.json",

@@ -11,7 +11,14 @@
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@google-cloud/secret-manager": "^6.1.1",
+    "@hapi/boom": "^10.0.1",
+    "baileys": "^7.0.0-rc.9",
+    "express": "^5.2.1",
+    "node-cache": "^5.1.2",
+    "pino": "^10.3.1"
+  },
   "keywords": [
     "whatsapp",
     "baileys",
