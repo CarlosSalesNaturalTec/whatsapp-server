@@ -397,7 +397,7 @@
           "estimativa": "1h",
           "prioridade": "media",
           "dependencias": ["feat-024"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["frontend", "layout", "responsivo"],
           "artefatos": [
             "frontend/src/App.jsx",
