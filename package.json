@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp-server",
+  "version": "1.0.0",
+  "description": "Servidor Node.js monolítico que gerencia um bot WhatsApp via Baileys v7 com sessão no Google Secret Manager e serve uma Landing Page React, hospedado em GCP Compute Engine.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "dependencies": {},
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "bot",
+    "gcp",
+    "secret-manager"
+  ],
+  "author": "",
+  "license": "MIT"
+}

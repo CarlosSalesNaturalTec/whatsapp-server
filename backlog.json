@@ -25,7 +25,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": [],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["setup", "config", "esm"],
           "artefatos": [
             "package.json",
