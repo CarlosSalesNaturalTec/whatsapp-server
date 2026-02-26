@@ -270,7 +270,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-013"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["bot", "mensagens", "handler"],
           "artefatos": [
             "src/bot/handlers/messageHandler.js"
