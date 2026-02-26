@@ -249,7 +249,7 @@
           "estimativa": "15min",
           "prioridade": "alta",
           "dependencias": ["feat-013"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["bot", "baileys", "sessao", "secret-manager"],
           "artefatos": [
             "src/bot/connection.js"

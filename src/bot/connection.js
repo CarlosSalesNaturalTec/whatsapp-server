@@ -14,6 +14,7 @@
  * - feat-013: Implementar função connectToWhatsApp com configurações de produção
  * - feat-014: Implementar autenticação por Pairing Code
  * - feat-015: Implementar handler de reconexão automática
+ * - feat-016: Persistir credenciais no evento creds.update
  *
  * Criado em: 2026-02-26
  */
@@ -204,6 +205,25 @@ async function connectToWhatsApp() {
      */
     getMessage: async (_key) => undefined,
   });
+
+  // ---------------------------------------------------------------
+  // Listener: creds.update — feat-016
+  // ---------------------------------------------------------------
+
+  /**
+   * Persiste as credenciais no Secret Manager sempre que o Baileys as atualiza.
+   *
+   * CRÍTICO: Este listener não pode ser omitido.
+   * O Baileys atualiza as credenciais de sessão (chaves de registro, identidade,
+   * pre-keys, etc.) de forma assíncrona durante o ciclo de vida da conexão.
+   * Se qualquer atualização for perdida — por ausência deste listener ou por
+   * falha silenciosa — o estado local diverge do servidor WhatsApp, tornando
+   * a sessão inválida na próxima reconexão e exigindo novo Pairing Code.
+   *
+   * A função `saveCreds` já incorpora tratamento de erros e chama o Secret
+   * Manager de forma segura (ver useSecretManagerAuthState em feat-011).
+   */
+  sock.ev.on('creds.update', saveCreds);
 
   // Atualiza o cache de grupos quando metadados são recebidos do servidor WhatsApp
   // Garante que cachedGroupMetadata sempre retorne dados frescos após uma atualização
