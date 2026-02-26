@@ -1,0 +1,10 @@
+/**
+ * Arquivo: frontend/src/index.css
+ * Descrição: Estilos globais — injeta as camadas do Tailwind CSS
+ * Feature: feat-024 - Inicializar projeto React com Vite e Tailwind CSS
+ * Criado em: 2026-02-26
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

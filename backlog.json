@@ -356,7 +356,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-004", "feat-022"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["pm2", "deploy", "produção"],
           "artefatos": [
             "ecosystem.config.cjs"
@@ -377,7 +377,7 @@
           "estimativa": "45min",
           "prioridade": "media",
           "dependencias": ["feat-001"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["frontend", "react", "vite", "tailwind", "setup"],
           "artefatos": [
             "frontend/package.json",
