@@ -81,7 +81,7 @@
           "estimativa": "20min",
           "prioridade": "alta",
           "dependencias": ["feat-002", "feat-003"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["setup", "logger", "pino"],
           "artefatos": [
             "src/utils/logger.js"
