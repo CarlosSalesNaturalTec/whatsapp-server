@@ -53,7 +53,7 @@
           "estimativa": "15min",
           "prioridade": "alta",
           "dependencias": ["feat-001"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["setup", "estrutura"],
           "artefatos": [
             "src/bot/auth/",
