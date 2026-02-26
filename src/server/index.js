@@ -1,15 +1,16 @@
 /**
  * Arquivo: src/server/index.js
  * Descrição: Configuração e inicialização do servidor HTTP Express.
- *            Aplica middlewares globais e exporta a função startServer().
- *            As rotas e o middleware de arquivos estáticos são registrados
- *            em features subsequentes (feat-007, feat-008).
+ *            Aplica middlewares globais, registra rotas e exporta startServer().
+ *            O middleware de arquivos estáticos é registrado em feat-008.
  * Feature: feat-006 - Criar e configurar app Express
+ * Atualizado em: feat-007 - Implementar rota GET /health
  * Criado em: 2026-02-25
  */
 
 import express from 'express';
 import logger from '../utils/logger.js';
+import healthRouter from './routes/health.js';
 
 const app = express();
 
@@ -28,6 +29,16 @@ app.use(express.json());
  * extended: false — usa a biblioteca nativa querystring (sem dependências extras).
  */
 app.use(express.urlencoded({ extended: false }));
+
+// -----------------------------------------------------------------
+// Rotas
+// -----------------------------------------------------------------
+
+/**
+ * Rota de health check — GET /health
+ * Retorna status do processo sem expor informações da sessão WhatsApp.
+ */
+app.use(healthRouter);
 
 // -----------------------------------------------------------------
 // Função de inicialização

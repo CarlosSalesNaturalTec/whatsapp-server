@@ -115,7 +115,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-006"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["server", "express", "health"],
           "artefatos": [
             "src/server/routes/health.js",
