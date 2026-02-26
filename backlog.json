@@ -176,7 +176,7 @@
           "estimativa": "1h",
           "prioridade": "alta",
           "dependencias": ["feat-009", "feat-010"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["gcp", "secret-manager", "auth", "baileys"],
           "artefatos": [
             "src/bot/auth/secretManagerAuthState.js"

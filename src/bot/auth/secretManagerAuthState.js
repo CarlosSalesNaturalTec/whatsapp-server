@@ -15,10 +15,12 @@
  *
  * Feature: feat-009 - Implementar getSecretValue (leitura do secret)
  * Atualizado em: feat-010 - Implementar saveSecretValue (escrita do secret)
+ * Atualizado em: feat-011 - Implementar useSecretManagerAuthState (auth state completo)
  * Criado em: 2026-02-25
  */
 
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import { BufferJSON, initAuthCreds } from 'baileys';
 import logger from '../../utils/logger.js';
 
 /**
@@ -134,4 +136,123 @@ async function saveSecretValue(secretName, projectId, payload) {
   }
 }
 
-export { getSecretValue, saveSecretValue };
+// -----------------------------------------------------------------
+// Auth State completo para makeWASocket
+// -----------------------------------------------------------------
+
+/**
+ * Cria e retorna um auth state do Baileys com persistência no Google Secret Manager.
+ *
+ * Substitui o useMultiFileAuthState padrão, que salva credenciais em arquivos
+ * locais — inseguro em ambientes de VM compartilhada ou com snapshots de disco.
+ *
+ * Comportamento na inicialização:
+ * - Secret existe → carrega creds e keys previamente persistidos
+ * - Secret não existe → inicializa creds em branco (initAuthCreds) e keys vazias
+ *   aguardando a primeira autenticação via Pairing Code
+ *
+ * O objeto `state` retornado é passado diretamente para makeWASocket({ auth: state }).
+ * O `saveCreds` é passado para sock.ev.on('creds.update', saveCreds).
+ *
+ * @param {string} projectId              - ID do projeto GCP
+ * @param {string} [secretName]           - Nome do secret (padrão: 'whatsapp-baileys-session')
+ * @returns {Promise<{ state: object, saveCreds: Function }>}
+ * @throws {Error} Se falhar ao ler o secret por motivo diferente de NOT_FOUND
+ *
+ * @example
+ * const { state, saveCreds } = await useSecretManagerAuthState('meu-projeto-gcp');
+ * const sock = makeWASocket({ auth: { creds: state.creds, keys: state.keys } });
+ * sock.ev.on('creds.update', saveCreds);
+ */
+async function useSecretManagerAuthState(
+  projectId,
+  secretName = 'whatsapp-baileys-session'
+) {
+  // Carrega o estado persistido ou inicializa do zero na primeira execução
+  const raw = await getSecretValue(secretName, projectId);
+
+  let creds;
+  let keys = {};
+
+  if (raw) {
+    const parsed = JSON.parse(raw, BufferJSON.reviver);
+    creds = parsed.creds;
+    keys  = parsed.keys ?? {};
+    logger.info({ secretName }, '[AuthState] Sessão carregada do Secret Manager');
+  } else {
+    creds = initAuthCreds();
+    logger.info({ secretName }, '[AuthState] Nenhuma sessão encontrada — iniciando autenticação');
+  }
+
+  /**
+   * Serializa e persiste o estado atual (creds + keys) no Secret Manager.
+   * Chamado pelo listener creds.update e pelo keys.set interno.
+   *
+   * @returns {Promise<void>}
+   */
+  async function persistState() {
+    const payload = JSON.stringify({ creds, keys }, BufferJSON.replacer);
+    await saveSecretValue(secretName, projectId, payload);
+  }
+
+  const state = {
+    creds,
+
+    keys: {
+      /**
+       * Recupera signal keys do cache em memória por tipo e lista de IDs.
+       * Retorna um mapa { [id]: value } para cada ID solicitado.
+       * IDs sem valor registrado retornam undefined (tratado pelo Baileys).
+       *
+       * @param {string}   type - Categoria da key (ex: 'pre-key', 'session', 'sender-key')
+       * @param {string[]} ids  - Lista de IDs a recuperar
+       * @returns {Record<string, any>}
+       */
+      get(type, ids) {
+        return ids.reduce((acc, id) => {
+          const value = keys[`${type}-${id}`];
+          if (value !== undefined) acc[id] = value;
+          return acc;
+        }, {});
+      },
+
+      /**
+       * Atualiza o cache em memória e persiste o estado completo no Secret Manager.
+       * Entradas com valor null/undefined são removidas do cache (limpeza de keys expiradas).
+       *
+       * Nota: a persistência ocorre a cada chamada nesta implementação base.
+       * O debounce para reduzir chamadas ao Secret Manager é implementado em feat-012.
+       *
+       * @param {Record<string, Record<string, any>>} data - Mapa categoria → { id: value }
+       * @returns {Promise<void>}
+       */
+      async set(data) {
+        for (const [category, entries] of Object.entries(data)) {
+          for (const [id, value] of Object.entries(entries)) {
+            if (value != null) {
+              keys[`${category}-${id}`] = value;
+            } else {
+              delete keys[`${category}-${id}`];
+            }
+          }
+        }
+        await persistState();
+      },
+    },
+  };
+
+  /**
+   * Persiste as credenciais atualizadas no Secret Manager.
+   * Deve ser registrado como listener do evento creds.update:
+   *   sock.ev.on('creds.update', saveCreds)
+   *
+   * @returns {Promise<void>}
+   */
+  async function saveCreds() {
+    await persistState();
+  }
+
+  return { state, saveCreds };
+}
+
+export { getSecretValue, saveSecretValue, useSecretManagerAuthState };
