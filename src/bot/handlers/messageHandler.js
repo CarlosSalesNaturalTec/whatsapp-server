@@ -16,6 +16,7 @@
  * - feat-017: Implementar handler messages.upsert
  * - feat-018: Implementar extração do corpo do texto da mensagem
  * - feat-019: Implementar detecção do comando #iniciarBot#
+ * - feat-020: Implementar envio da resposta 'Bot Iniciado'
  *
  * Criado em: 2026-02-26
  */
@@ -155,11 +156,27 @@ export function registerMessageHandler(sock) {
       logger.debug({ jid, bodyLength: body.length }, '[MessageHandler] Mensagem recebida — corpo extraído');
 
       // ---------------------------------------------------------------
-      // Detecção do comando #iniciarBot# — feat-019
+      // Detecção e resposta ao comando #iniciarBot# — feat-019 / feat-020
       // ---------------------------------------------------------------
 
       if (isCommand(body, '#iniciarBot#')) {
         logger.debug({ jid }, '[MessageHandler] Comando #iniciarBot# detectado');
+
+        /**
+         * Envia a resposta fixa 'Bot Iniciado' para o mesmo chat (jid) onde
+         * o comando foi recebido, seja ele um chat individual ou um grupo.
+         *
+         * O try/catch é essencial aqui: falhas no envio são comuns em cenários
+         * de rede instável, rate limiting do WhatsApp ou jid inválido.
+         * Erros não tratados interromperiam o loop e ignorariam mensagens
+         * subsequentes no mesmo evento messages.upsert.
+         */
+        try {
+          await sock.sendMessage(jid, { text: 'Bot Iniciado' });
+          logger.info({ jid }, '[MessageHandler] Resposta "Bot Iniciado" enviada com sucesso');
+        } catch (err) {
+          logger.error({ err, jid }, '[MessageHandler] Erro ao enviar resposta "Bot Iniciado"');
+        }
       }
     }
   });
