@@ -426,7 +426,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-008", "feat-025"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["frontend", "build", "integração"],
           "artefatos": [
             "package.json",
