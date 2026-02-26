@@ -150,7 +150,7 @@
           "estimativa": "45min",
           "prioridade": "alta",
           "dependencias": ["feat-002", "feat-003", "feat-005"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["gcp", "secret-manager", "auth"],
           "artefatos": [
             "src/bot/auth/secretManagerAuthState.js"
