@@ -12,6 +12,7 @@
  *
  * Features implementadas neste arquivo:
  * - feat-013: Implementar função connectToWhatsApp com configurações de produção
+ * - feat-014: Implementar autenticação por Pairing Code
  *
  * Criado em: 2026-02-26
  */
@@ -40,6 +41,13 @@ const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID;
  * Valor padrão alinhado com o .env.example e a documentação do projeto.
  */
 const SECRET_NAME = process.env.SECRET_NAME || 'whatsapp-baileys-session';
+
+/**
+ * Número de telefone da conta WhatsApp no formato E.164 sem o sinal de '+'.
+ * Exemplo: '5511999999999' para +55 (11) 99999-9999.
+ * Utilizado exclusivamente para solicitar o Pairing Code na primeira autenticação.
+ */
+const PHONE_NUMBER = process.env.PHONE_NUMBER;
 
 // -----------------------------------------------------------------
 // Cache de metadados de grupos
@@ -77,7 +85,8 @@ const groupCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
  *    - printQRInTerminal: false — usamos Pairing Code em produção (sem QR)
  *    - syncFullHistory: false — evita download do histórico completo (memória/banda)
  *    - Timeouts configurados para ambientes de rede com latência variável (VM GCP)
- * 4. Retorna o socket para registro de event listeners (feats 014, 015, 016)
+ * 4. Registra handler connection.update para autenticação via Pairing Code (sem QR)
+ * 5. Retorna o socket para registro de event listeners adicionais (feats 015, 016)
  *
  * @returns {Promise<import('baileys').WASocket>} Socket Baileys configurado e em processo de conexão
  * @throws {Error} Se GCP_PROJECT_ID não estiver definido ou se o Secret Manager falhar
@@ -201,6 +210,80 @@ async function connectToWhatsApp() {
       if (event.id) {
         groupCache.set(event.id, event);
         logger.debug({ groupId: event.id }, '[Connection] Cache de grupo atualizado');
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // Handler: connection.update — Pairing Code (feat-014)
+  // ---------------------------------------------------------------
+
+  /**
+   * Flag de controle para garantir que o Pairing Code seja solicitado
+   * apenas uma vez por ciclo de vida do socket.
+   *
+   * O evento connection.update pode disparar múltiplas vezes enquanto o
+   * WebSocket negocia a conexão com o servidor WhatsApp. Sem esta flag,
+   * requestPairingCode() seria chamado repetidamente, causando erros de
+   * "already requested" ou expiração prematura do código.
+   */
+  let pairingCodeRequested = false;
+
+  /**
+   * Solicita o Pairing Code para autenticação headless (sem QR Code).
+   *
+   * Condições para solicitar:
+   * 1. A conexão está em estado 'connecting' OU o servidor enviou um QR
+   *    (ambos indicam que não há sessão ativa sendo negociada)
+   * 2. As credenciais ainda não estão registradas (!creds.registered)
+   *    — protege contra solicitações desnecessárias em reconexões com
+   *    sessão válida
+   * 3. O código ainda não foi solicitado neste ciclo (!pairingCodeRequested)
+   *
+   * Após a geração, o código de 8 dígitos é exibido no log com nível 'info'
+   * para que o administrador possa vinculá-lo manualmente no WhatsApp:
+   *   Configurações → Dispositivos conectados → Conectar dispositivo → Código
+   *
+   * Em caso de erro na solicitação, a flag é redefinida para permitir
+   * nova tentativa no próximo evento de conexão.
+   *
+   * @param {object} update - Payload do evento connection.update
+   * @param {string|undefined} update.connection - Estado atual: 'connecting' | 'open' | 'close'
+   * @param {string|undefined} update.qr         - String do QR Code se enviado pelo servidor
+   * @returns {Promise<void>}
+   */
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, qr } = update;
+
+    const shouldRequestPairing =
+      (connection === 'connecting' || !!qr) &&
+      !sock.authState.creds.registered &&
+      !pairingCodeRequested;
+
+    if (shouldRequestPairing) {
+      if (!PHONE_NUMBER) {
+        logger.error(
+          '[Connection] Variável PHONE_NUMBER não definida — impossível solicitar Pairing Code. ' +
+          'Configure PHONE_NUMBER no formato E.164 sem + (ex: 5511999999999).'
+        );
+        return;
+      }
+
+      pairingCodeRequested = true;
+      logger.info({ phoneNumber: PHONE_NUMBER }, '[Connection] Solicitando Pairing Code...');
+
+      try {
+        const code = await sock.requestPairingCode(PHONE_NUMBER);
+
+        // Exibe o código de forma destacada no log para facilitar leitura pelo administrador.
+        // O código tem formato XXXX-XXXX e deve ser inserido em:
+        // WhatsApp → Configurações → Dispositivos conectados → Conectar dispositivo → Código
+        logger.info(`[Connection] *** PAIRING CODE: ${code} ***`);
+        logger.info('[Connection] Insira o código acima em: Configurações → Dispositivos conectados → Conectar dispositivo → Código');
+      } catch (err) {
+        logger.error({ err }, '[Connection] Erro ao solicitar Pairing Code');
+        // Redefine a flag para permitir nova tentativa no próximo evento de conexão
+        pairingCodeRequested = false;
       }
     }
   });

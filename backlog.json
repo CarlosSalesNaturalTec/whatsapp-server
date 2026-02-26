@@ -223,7 +223,7 @@
           "estimativa": "45min",
           "prioridade": "alta",
           "dependencias": ["feat-013"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["bot", "baileys", "pairing-code", "auth"],
           "artefatos": [
             "src/bot/connection.js"
