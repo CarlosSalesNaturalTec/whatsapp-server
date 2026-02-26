@@ -210,7 +210,7 @@
           "estimativa": "1h",
           "prioridade": "alta",
           "dependencias": ["feat-005", "feat-011"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["bot", "baileys", "conexao"],
           "artefatos": [
             "src/bot/connection.js"
