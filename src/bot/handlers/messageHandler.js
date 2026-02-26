@@ -17,6 +17,7 @@
  * - feat-018: Implementar extração do corpo do texto da mensagem
  * - feat-019: Implementar detecção do comando #iniciarBot#
  * - feat-020: Implementar envio da resposta 'Bot Iniciado'
+ * - feat-021: Implementar logging de mensagens recebidas
  *
  * Criado em: 2026-02-26
  */
@@ -153,14 +154,36 @@ export function registerMessageHandler(sock) {
        */
       const body = extractMessageBody(msg);
 
-      logger.debug({ jid, bodyLength: body.length }, '[MessageHandler] Mensagem recebida — corpo extraído');
+      /**
+       * Logging estruturado de toda mensagem recebida (não própria).
+       *
+       * Campos registrados:
+       * - jid: identifica o remetente (chat individual) ou grupo de origem
+       * - timestamp: momento em que a mensagem foi enviada no WhatsApp,
+       *   em Unix time (segundos). Mais preciso que o momento do processamento,
+       *   especialmente útil para mensagens recebidas com delay de sincronização.
+       * - bodyPreview: primeiros 50 caracteres do corpo de texto. O limite evita
+       *   logs excessivamente longos sem perder o contexto da mensagem.
+       *   Mensagens sem texto (mídia, sticker, etc.) registram bodyPreview: ''.
+       *
+       * Nível 'info' garante visibilidade em produção com LOG_LEVEL=info,
+       * possibilitando rastreabilidade de mensagens sem expor conteúdo sensível
+       * completo nos logs.
+       */
+      logger.info(
+        {
+          jid,
+          timestamp: msg.messageTimestamp,
+          bodyPreview: body.slice(0, 50),
+        },
+        '[MessageHandler] Mensagem recebida'
+      );
 
       // ---------------------------------------------------------------
       // Detecção e resposta ao comando #iniciarBot# — feat-019 / feat-020
       // ---------------------------------------------------------------
 
       if (isCommand(body, '#iniciarBot#')) {
-        logger.debug({ jid }, '[MessageHandler] Comando #iniciarBot# detectado');
 
         /**
          * Envia a resposta fixa 'Bot Iniciado' para o mesmo chat (jid) onde
