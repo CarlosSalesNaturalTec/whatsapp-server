@@ -16,6 +16,7 @@
  * Feature: feat-009 - Implementar getSecretValue (leitura do secret)
  * Atualizado em: feat-010 - Implementar saveSecretValue (escrita do secret)
  * Atualizado em: feat-011 - Implementar useSecretManagerAuthState (auth state completo)
+ * Atualizado em: feat-012 - Adicionar cache em memória e debounce no keys.set
  * Criado em: 2026-02-25
  */
 
@@ -35,6 +36,51 @@ const client = new SecretManagerServiceClient();
  * Documentação: https://grpc.github.io/grpc/core/md_doc_statuscodes.html
  */
 const GRPC_NOT_FOUND = 5;
+
+/**
+ * Delay em ms para o debounce aplicado em keys.set.
+ * O Baileys dispara keys.set em rajadas durante sync inicial e troca de mensagens.
+ * Com 3s de debounce, rajadas consecutivas resultam em uma única escrita no Secret Manager,
+ * reduzindo drasticamente o número de requests e evitando throttling da API GCP.
+ *
+ * Referência de quota: 10.000 requests/mês no free tier do Secret Manager.
+ */
+const DEBOUNCE_DELAY_MS = 3000;
+
+// -----------------------------------------------------------------
+// Utilitário de debounce
+// -----------------------------------------------------------------
+
+/**
+ * Cria uma versão debounced de uma função assíncrona.
+ *
+ * Chamadas feitas dentro do intervalo `delayMs` cancelam o timer anterior,
+ * garantindo que apenas a última chamada de uma rajada seja efetivamente executada.
+ * Erros da execução assíncrona são capturados e logados internamente —
+ * o caller não precisa lidar com a rejeição da Promise.
+ *
+ * @param {Function} fn      - Função assíncrona a ser debounced
+ * @param {number}   delayMs - Tempo de espera em milissegundos após a última chamada
+ * @returns {Function} Versão debounced que retorna void (fire-and-forget)
+ *
+ * @example
+ * const debouncedSave = createDebounce(persistState, 3000);
+ * debouncedSave(); // Agenda execução em 3s
+ * debouncedSave(); // Cancela o timer anterior, reagenda em mais 3s
+ */
+function createDebounce(fn, delayMs) {
+  let timer = null;
+
+  return function debouncedFn(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args).catch((err) => {
+        logger.error({ err }, '[AuthState] Erro ao persistir estado via debounce (keys.set)');
+      });
+    }, delayMs);
+  };
+}
 
 // -----------------------------------------------------------------
 // Leitura do Secret Manager
@@ -195,6 +241,13 @@ async function useSecretManagerAuthState(
     await saveSecretValue(secretName, projectId, payload);
   }
 
+  /**
+   * Versão debounced de persistState para uso exclusivo em keys.set.
+   * Agrupa rajadas de eventos em uma única escrita ao Secret Manager após 3s de inatividade.
+   * Erros são capturados internamente — keys.set não precisa tratar rejeição.
+   */
+  const persistStateDebounced = createDebounce(persistState, DEBOUNCE_DELAY_MS);
+
   const state = {
     creds,
 
@@ -217,16 +270,19 @@ async function useSecretManagerAuthState(
       },
 
       /**
-       * Atualiza o cache em memória e persiste o estado completo no Secret Manager.
-       * Entradas com valor null/undefined são removidas do cache (limpeza de keys expiradas).
+       * Atualiza o cache em memória e agenda persistência debounced no Secret Manager.
        *
-       * Nota: a persistência ocorre a cada chamada nesta implementação base.
-       * O debounce para reduzir chamadas ao Secret Manager é implementado em feat-012.
+       * A atualização do cache é síncrona e imediata — o Baileys lê as keys
+       * via get() logo após o set(), portanto o cache deve estar atualizado na hora.
+       * A escrita no Secret Manager é debounced (3s): rajadas de eventos set()
+       * resultam em uma única chamada à API GCP, evitando throttling.
+       *
+       * Entradas com valor null/undefined são removidas do cache (keys expiradas).
        *
        * @param {Record<string, Record<string, any>>} data - Mapa categoria → { id: value }
-       * @returns {Promise<void>}
+       * @returns {void} Fire-and-forget — persistência ocorre de forma assíncrona
        */
-      async set(data) {
+      set(data) {
         for (const [category, entries] of Object.entries(data)) {
           for (const [id, value] of Object.entries(entries)) {
             if (value != null) {
@@ -236,7 +292,8 @@ async function useSecretManagerAuthState(
             }
           }
         }
-        await persistState();
+        // Agenda persistência debounced — não bloqueia o event loop do Baileys
+        persistStateDebounced();
       },
     },
   };

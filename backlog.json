@@ -189,7 +189,7 @@
           "estimativa": "45min",
           "prioridade": "media",
           "dependencias": ["feat-011"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["performance", "secret-manager", "cache"],
           "artefatos": [
             "src/bot/auth/secretManagerAuthState.js"
