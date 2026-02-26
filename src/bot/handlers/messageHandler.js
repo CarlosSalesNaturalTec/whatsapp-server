@@ -15,6 +15,7 @@
  * Features implementadas neste arquivo:
  * - feat-017: Implementar handler messages.upsert
  * - feat-018: Implementar extração do corpo do texto da mensagem
+ * - feat-019: Implementar detecção do comando #iniciarBot#
  *
  * Criado em: 2026-02-26
  */
@@ -55,6 +56,35 @@ function extractMessageBody(msg) {
     msg.message?.extendedTextMessage?.text ||
     ''
   );
+}
+
+/**
+ * Verifica se o corpo de uma mensagem corresponde exatamente a um comando.
+ *
+ * A comparação é:
+ * - **Exata**: o corpo inteiro deve ser igual ao comando, sem conteúdo extra
+ * - **Case-sensitive**: '#iniciarBot#' ≠ '#iniciArBot#'
+ * - **Sem trim**: espaços à esquerda/direita tornam a comparação falsa
+ *
+ * Estes critérios são intencionais — o usuário deve digitar o comando
+ * precisamente para acioná-lo, evitando falsos positivos em mensagens
+ * que contenham o texto do comando como parte de uma frase maior.
+ *
+ * A assinatura genérica (body, command) facilita a adição de novos
+ * comandos sem duplicar a lógica de comparação.
+ *
+ * @param {string} body    - Corpo de texto extraído da mensagem
+ * @param {string} command - Comando exato a comparar (ex: '#iniciarBot#')
+ * @returns {boolean} true se body === command, false caso contrário
+ *
+ * @example
+ * isCommand('#iniciarBot#', '#iniciarBot#') // true
+ * isCommand(' #iniciarBot#', '#iniciarBot#') // false — espaço à esquerda
+ * isCommand('#INICIARBOT#', '#iniciarBot#') // false — case diferente
+ * isCommand('texto #iniciarBot# aqui', '#iniciarBot#') // false — comando embutido
+ */
+function isCommand(body, command) {
+  return body === command;
 }
 
 /**
@@ -123,6 +153,14 @@ export function registerMessageHandler(sock) {
       const body = extractMessageBody(msg);
 
       logger.debug({ jid, bodyLength: body.length }, '[MessageHandler] Mensagem recebida — corpo extraído');
+
+      // ---------------------------------------------------------------
+      // Detecção do comando #iniciarBot# — feat-019
+      // ---------------------------------------------------------------
+
+      if (isCommand(body, '#iniciarBot#')) {
+        logger.debug({ jid }, '[MessageHandler] Comando #iniciarBot# detectado');
+      }
     }
   });
 
