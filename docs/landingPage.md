@@ -11,5 +11,16 @@ Telefone: (71) 3235-2803
 WhatsApp: (71) 9.9341-6896
 e-mail: naturalbahia@gmail.com
 
+# Produtos e depoimentos
+* Secretaria On Line. Readme=.... Images=.... Depoimento do cliente + logo ou foto
+* monitora marcas 
+    exemplo real com: politicos
+    exemplo real com empresa
+    exemplo real principal tema falado na cidade + filtro por temas
+    exemplo real principais temas falado na cidade por temas
 
-
+# Ações Sociais
+* Robô Educa
+* Inova comunidade
+* fotos google
+* call to action -> doe, compre

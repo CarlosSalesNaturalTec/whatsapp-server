@@ -448,7 +448,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-004"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["gcp", "iam", "secret-manager", "deploy"],
           "artefatos": [
             "docs/setup-gcp.md"
