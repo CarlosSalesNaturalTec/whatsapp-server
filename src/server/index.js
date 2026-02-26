@@ -1,16 +1,28 @@
 /**
  * Arquivo: src/server/index.js
  * Descrição: Configuração e inicialização do servidor HTTP Express.
- *            Aplica middlewares globais, registra rotas e exporta startServer().
- *            O middleware de arquivos estáticos é registrado em feat-008.
+ *            Aplica middlewares globais, registra rotas, serve o build estático
+ *            do React e exporta startServer().
  * Feature: feat-006 - Criar e configurar app Express
  * Atualizado em: feat-007 - Implementar rota GET /health
+ * Atualizado em: feat-008 - Configurar middleware de arquivos estáticos do frontend
  * Criado em: 2026-02-25
  */
 
 import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import logger from '../utils/logger.js';
 import healthRouter from './routes/health.js';
+
+/**
+ * Resolve o caminho absoluto para frontend/dist/ a partir deste arquivo.
+ * Necessário em ESM: __dirname não existe, então usamos import.meta.url.
+ * Estrutura: src/server/index.js → ../../frontend/dist
+ */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = dirname(__filename);
+const FRONTEND_DIST = join(__dirname, '..', '..', 'frontend', 'dist');
 
 const app = express();
 
@@ -37,8 +49,38 @@ app.use(express.urlencoded({ extended: false }));
 /**
  * Rota de health check — GET /health
  * Retorna status do processo sem expor informações da sessão WhatsApp.
+ * Registrada antes do static para garantir prioridade sobre os assets.
  */
 app.use(healthRouter);
+
+// -----------------------------------------------------------------
+// Arquivos estáticos do frontend (React build)
+// -----------------------------------------------------------------
+
+/**
+ * Serve os assets gerados pelo build do Vite (JS, CSS, imagens, fontes).
+ * Requisições para /assets/*, /*.js, /*.css, etc. são atendidas diretamente.
+ * maxAge 1 dia — os assets do Vite têm hash no nome, então cache longo é seguro.
+ */
+app.use(express.static(FRONTEND_DIST, { maxAge: '1d' }));
+
+/**
+ * Catch-all: qualquer rota não reconhecida retorna o index.html do React.
+ * Necessário para que o React Router (client-side routing) funcione corretamente
+ * ao acessar rotas como /sobre, /contato, etc. diretamente pelo browser.
+ *
+ * Deve ser registrado APÓS todos os outros middlewares e rotas de API.
+ */
+app.get('/{*path}', (req, res) => {
+  res.sendFile(join(FRONTEND_DIST, 'index.html'), (err) => {
+    if (err) {
+      logger.warn({ err, url: req.url }, '[HTTP] index.html não encontrado — frontend não foi buildado?');
+      res.status(404).json({
+        error: 'Frontend não disponível. Execute npm run build:frontend.',
+      });
+    }
+  });
+});
 
 // -----------------------------------------------------------------
 // Função de inicialização

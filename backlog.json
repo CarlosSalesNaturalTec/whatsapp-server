@@ -129,7 +129,7 @@
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-006"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["server", "express", "static", "frontend"],
           "artefatos": [
             "src/server/index.js"
