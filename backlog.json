@@ -412,7 +412,7 @@
           "estimativa": "1h30min",
           "prioridade": "media",
           "dependencias": ["feat-025"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["frontend", "landing-page", "hero"],
           "artefatos": [
             "frontend/src/components/HeroSection.jsx",
