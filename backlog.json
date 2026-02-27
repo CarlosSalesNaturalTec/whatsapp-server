@@ -461,7 +461,7 @@
           "estimativa": "45min",
           "prioridade": "media",
           "dependencias": ["feat-022", "feat-023", "feat-027"],
-          "status": "Não Iniciada",
+          "status": "Concluída",
           "tags": ["documentacao", "deploy", "operacao"],
           "artefatos": [
             "README.md"
