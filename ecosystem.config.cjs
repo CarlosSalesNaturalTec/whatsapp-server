@@ -12,9 +12,9 @@ module.exports = {
     interpreter:  'node',
     env: {
       NODE_ENV:       'production',
-      GCP_PROJECT_ID: 'seu-projeto-gcp',
+      GCP_PROJECT_ID: 'natural-tecnologia',
       SECRET_NAME:    'whatsapp-baileys-auth',
-      PHONE_NUMBER:   '5511999999999',
+      PHONE_NUMBER:   '5571993416896',
       PORT:           '80',
       LOG_LEVEL:      'warn',
     },
