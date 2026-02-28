@@ -128,8 +128,8 @@ async function getSecretValue(secretName, projectId) {
       return null;
     }
 
-    if (err.code === GRPC_FAILED_PRECONDITION && err.message?.includes('DESTROYED')) {
-      logger.warn({ secretName }, '[SecretManager] Versão latest do secret está DESTROYED — iniciando autenticação do zero');
+    if (err.code === GRPC_FAILED_PRECONDITION) {
+      logger.warn({ secretName }, '[SecretManager] Versão latest do secret está DESTROYED ou DISABLED — iniciando autenticação do zero');
       return null;
     }
 
