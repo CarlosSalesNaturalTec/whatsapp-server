@@ -16,7 +16,7 @@ module.exports = {
       SECRET_NAME:    'whatsapp-baileys-auth',
       PHONE_NUMBER:   '5571993416896',
       PORT:           '80',
-      LOG_LEVEL:      'warn',
+      LOG_LEVEL:      'info',
     },
     max_memory_restart: '512M',
     restart_delay:      5000,
