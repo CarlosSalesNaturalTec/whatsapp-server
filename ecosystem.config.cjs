@@ -13,7 +13,7 @@ module.exports = {
     env: {
       NODE_ENV:       'production',
       GCP_PROJECT_ID: 'seu-projeto-gcp',
-      SECRET_NAME:    'whatsapp-baileys-session',
+      SECRET_NAME:    'whatsapp-baileys-auth',
       PHONE_NUMBER:   '5511999999999',
       PORT:           '80',
       LOG_LEVEL:      'warn',

@@ -38,6 +38,12 @@ const client = new SecretManagerServiceClient();
 const GRPC_NOT_FOUND = 5;
 
 /**
+ * Código de erro gRPC retornado quando a versão do secret está em estado DESTROYED.
+ * Ocorre ao acessar `versions/latest` e a versão mais recente ter sido destruída.
+ */
+const GRPC_FAILED_PRECONDITION = 9;
+
+/**
  * Delay em ms para o debounce aplicado em keys.set.
  * O Baileys dispara keys.set em rajadas durante sync inicial e troca de mensagens.
  * Com 3s de debounce, rajadas consecutivas resultam em uma única escrita no Secret Manager,
@@ -119,6 +125,11 @@ async function getSecretValue(secretName, projectId) {
   } catch (err) {
     if (err.code === GRPC_NOT_FOUND) {
       logger.warn({ secretName }, '[SecretManager] Secret não encontrado — será inicializado na primeira autenticação');
+      return null;
+    }
+
+    if (err.code === GRPC_FAILED_PRECONDITION && err.message?.includes('DESTROYED')) {
+      logger.warn({ secretName }, '[SecretManager] Versão latest do secret está DESTROYED — iniciando autenticação do zero');
       return null;
     }
 

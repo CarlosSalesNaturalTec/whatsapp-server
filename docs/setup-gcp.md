@@ -174,12 +174,12 @@ chmod +x setup-iam.sh
 
 ## 4. Criar o Secret no Secret Manager
 
-O secret `whatsapp-baileys-session` armazenará o estado de autenticação da sessão WhatsApp. Deve ser criado **antes** da primeira execução da aplicação.
+O secret `whatsapp-baileys-auth` armazenará o estado de autenticação da sessão WhatsApp. Deve ser criado **antes** da primeira execução da aplicação.
 
 ### 4.1 Criar o secret com replicação automática
 
 ```bash
-gcloud secrets create whatsapp-baileys-session \
+gcloud secrets create whatsapp-baileys-auth \
     --replication-policy="automatic"
 ```
 
@@ -188,14 +188,14 @@ gcloud secrets create whatsapp-baileys-session \
 ### 4.2 Verificar que o secret foi criado
 
 ```bash
-gcloud secrets describe whatsapp-baileys-session
+gcloud secrets describe whatsapp-baileys-auth
 ```
 
 **Saída esperada:**
 ```yaml
 createTime: '2026-02-26T00:00:00Z'
 etag: '"..."'
-name: projects/SEU_PROJECT_ID/secrets/whatsapp-baileys-session
+name: projects/SEU_PROJECT_ID/secrets/whatsapp-baileys-auth
 replication:
   automatic: {}
 ```
@@ -205,7 +205,7 @@ replication:
 Confirme que a variável `SECRET_NAME` no seu `.env` (ou no `ecosystem.config.cjs`) corresponde exatamente ao nome criado:
 
 ```env
-SECRET_NAME=whatsapp-baileys-session
+SECRET_NAME=whatsapp-baileys-auth
 ```
 
 ---
@@ -235,7 +235,7 @@ Para testar que a Service Account tem acesso correto ao secret, você pode execu
 ```bash
 # Acesso à versão mais recente do secret (teste de leitura)
 gcloud secrets versions access latest \
-    --secret="whatsapp-baileys-session" \
+    --secret="whatsapp-baileys-auth" \
     --project="SEU_PROJECT_ID"
 ```
 
@@ -244,7 +244,7 @@ Se o secret ainda não possui versões (primeira execução), o comando retornar
 ### 5.3 Testar permissão de escrita (adicionar versão de teste)
 
 ```bash
-echo '{"test": true}' | gcloud secrets versions add whatsapp-baileys-session \
+echo '{"test": true}' | gcloud secrets versions add whatsapp-baileys-auth \
     --data-file=- \
     --project="SEU_PROJECT_ID"
 ```
@@ -253,11 +253,11 @@ Se bem-sucedido, o comando exibirá o número da versão criada. Você pode remo
 
 ```bash
 # Listar versões
-gcloud secrets versions list whatsapp-baileys-session
+gcloud secrets versions list whatsapp-baileys-auth
 
 # Destruir a versão de teste (substitua NUMERO pela versão listada)
 gcloud secrets versions destroy NUMERO \
-    --secret="whatsapp-baileys-session"
+    --secret="whatsapp-baileys-auth"
 ```
 
 ---
@@ -266,7 +266,7 @@ gcloud secrets versions destroy NUMERO \
 
 | Item | Valor |
 |---|---|
-| **Secret Name** | `whatsapp-baileys-session` |
+| **Secret Name** | `whatsapp-baileys-auth` |
 | **Replication Policy** | `automatic` |
 | **Role (obrigatório)** | `roles/secretmanager.secretAccessor` |
 | **Role (obrigatório)** | `roles/secretmanager.secretVersionAdder` |
@@ -290,7 +290,7 @@ gcloud secrets versions destroy NUMERO \
 
 ### Erro: `NOT_FOUND` ao tentar adicionar versão ao secret
 
-**Causa:** O secret `whatsapp-baileys-session` não existe no projeto.
+**Causa:** O secret `whatsapp-baileys-auth` não existe no projeto.
 
 **Solução:** Execute o comando de criação do secret (seção 4.1). A aplicação também cria automaticamente o secret se ele não existir, desde que a Service Account tenha o role `secretmanager.secretVersionAdder`.
 
@@ -305,10 +305,10 @@ gcloud secrets versions destroy NUMERO \
 - Se necessário, destrua versões antigas do secret para manter o histórico enxuto:
   ```bash
   # Listar versões
-  gcloud secrets versions list whatsapp-baileys-session --limit=20
+  gcloud secrets versions list whatsapp-baileys-auth --limit=20
 
   # Destruir versões antigas (mantenha apenas as últimas 2-3)
-  gcloud secrets versions destroy NUMERO --secret="whatsapp-baileys-session"
+  gcloud secrets versions destroy NUMERO --secret="whatsapp-baileys-auth"
   ```
 
 ---
