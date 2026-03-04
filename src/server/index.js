@@ -119,6 +119,10 @@ function startServer(port) {
     server.on('error', (error) => {
       logger.error({ err: error, port: resolvedPort }, '[HTTP] Falha ao iniciar o servidor');
       reject(error);
+      // Garante saída mesmo se a Promise já foi resolvida (ex: listen callback disparou
+      // antes do evento de erro em conflito de porta IPv4/IPv6). Sem process.exit aqui,
+      // o processo continua rodando sem servidor HTTP e o PM2 não aplica restart_delay.
+      process.exit(1);
     });
   });
 }

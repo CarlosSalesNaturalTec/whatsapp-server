@@ -9,6 +9,8 @@ Criar página com serviços oferecidos  / Landing page coorporativa
 
 dominio
 
+Contactar AWS para créditos
+
 Atendimento por whatsapp
 
 Em quais plataformas devo anunciar meus serviços (google ads, youtube ads, linkedin, mercado livre, olx, outros)
