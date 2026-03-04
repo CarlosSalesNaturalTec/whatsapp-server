@@ -58,7 +58,7 @@ Debian 12 é a opção mais enxuta e compatível com o script de instalação do
 | Atributo | Valor recomendado |
 |---|---|
 | **Região** | `southamerica-east1` (São Paulo) |
-| **Zona** | `southamerica-east1-b` |
+| **Zona** | `southamerica-east1-a` |
 
 Menor latência para usuários brasileiros do WhatsApp e visitantes da Landing Page.
 
@@ -124,7 +124,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID `
 
 ```powershell
 gcloud compute instances create whatsapp-server `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --machine-type=e2-small `
     --image-family=debian-12 `
     --image-project=debian-cloud `
@@ -152,7 +152,7 @@ $IP = gcloud compute addresses describe whatsapp-server-ip `
 
 # Associar o IP estático à VM
 gcloud compute instances add-access-config whatsapp-server `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --access-config-name="External NAT" `
     --address=$IP `
     --project=$PROJECT_ID
@@ -185,7 +185,7 @@ Após criar a instância, conecte-se via SSH e execute:
 ```powershell
 # Conectar via gcloud SSH (PowerShell local)
 gcloud compute ssh whatsapp-server `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --project=$PROJECT_ID
 ```
 
@@ -231,7 +231,7 @@ pm2 logs whatsapp-server
 ```powershell
 # PowerShell local — verificar IP externo da VM
 gcloud compute instances describe whatsapp-server `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --project=$PROJECT_ID `
     --format="value(networkInterfaces[0].accessConfigs[0].natIP)"
 ```
@@ -253,7 +253,7 @@ Após a inicialização:
 | **RAM** | 2 GB |
 | **SO** | Debian 12 (Bookworm) |
 | **Disco** | 20 GB SSD (`pd-balanced`) |
-| **Região / Zona** | `southamerica-east1` / `southamerica-east1-b` |
+| **Região / Zona** | `southamerica-east1` / `southamerica-east1-a` |
 | **IP externo** | Estático |
 | **Firewall** | TCP 80, 443 abertos; 22 restrito |
 | **Service Account** | Dedicada — `secretAccessor`, `secretVersionAdder`, `secretVersionManager` |

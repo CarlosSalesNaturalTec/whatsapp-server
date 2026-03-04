@@ -153,7 +153,7 @@ Conecte-se à VM via SSH e execute os passos abaixo. **Execute apenas na primeir
 ```powershell
 # PowerShell local
 gcloud compute ssh NOME_DA_VM `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --project=$PROJECT_ID
 ```
 
@@ -372,7 +372,7 @@ Para atualizar a aplicação com novas versões do código:
 ```powershell
 # 1. Conectar à VM (PowerShell local)
 gcloud compute ssh NOME_DA_VM `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --project=$PROJECT_ID
 ```
 
@@ -463,7 +463,7 @@ Para obter o IP externo da VM:
 
 ```powershell
 gcloud compute instances describe NOME_DA_VM `
-    --zone=southamerica-east1-b `
+    --zone=southamerica-east1-a `
     --project=$PROJECT_ID `
     --format="value(networkInterfaces[0].accessConfigs[0].natIP)"
 ```
