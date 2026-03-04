@@ -92,79 +92,88 @@ Criar uma Service Account dedicada com permissões mínimas (princípio do menor
 
 ## 2. Criar a VM via gcloud
 
+> **Ambiente local:** os comandos abaixo são executados no **PowerShell (Windows)** com o Google Cloud SDK instalado. O caractere `` ` `` é a continuação de linha do PowerShell (equivalente ao `\` do bash). Os comandos executados *dentro da VM via SSH* são Linux e permanecem inalterados.
+
 ### 2.1 Pré-requisito: criar a Service Account
 
-```bash
+```powershell
+# Definir variáveis — substitua pelos valores reais
+$PROJECT_ID = "SEU_PROJECT_ID"
+$SA_EMAIL   = "whatsapp-server-sa@SEU_PROJECT_ID.iam.gserviceaccount.com"
+
 # Criar SA dedicada
-gcloud iam service-accounts create whatsapp-server-sa \
-    --display-name="WhatsApp Server Service Account" \
-    --project=SEU_PROJECT_ID
+gcloud iam service-accounts create whatsapp-server-sa `
+    --display-name="WhatsApp Server Service Account" `
+    --project=$PROJECT_ID
 
 # Conceder roles necessários (detalhado em setup-gcp.md)
-SA_EMAIL="whatsapp-server-sa@SEU_PROJECT_ID.iam.gserviceaccount.com"
-
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:$SA_EMAIL" \
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretAccessor"
 
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:$SA_EMAIL" \
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretVersionAdder"
 
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:$SA_EMAIL" \
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretVersionManager"
 ```
 
 ### 2.2 Criar a instância
 
-```bash
-gcloud compute instances create whatsapp-server \
-    --zone=southamerica-east1-b \
-    --machine-type=e2-small \
-    --image-family=debian-12 \
-    --image-project=debian-cloud \
-    --boot-disk-size=20GB \
-    --boot-disk-type=pd-balanced \
-    --service-account=whatsapp-server-sa@SEU_PROJECT_ID.iam.gserviceaccount.com \
-    --scopes=cloud-platform \
-    --tags=http-server,https-server \
-    --project=SEU_PROJECT_ID
+```powershell
+gcloud compute instances create whatsapp-server `
+    --zone=southamerica-east1-b `
+    --machine-type=e2-small `
+    --image-family=debian-12 `
+    --image-project=debian-cloud `
+    --boot-disk-size=20GB `
+    --boot-disk-type=pd-balanced `
+    --service-account=$SA_EMAIL `
+    --scopes=cloud-platform `
+    --tags=http-server,https-server `
+    --project=$PROJECT_ID
 ```
 
 ### 2.3 Reservar IP externo estático
 
-```bash
+```powershell
 # Reservar endereço IP estático na mesma região
-gcloud compute addresses create whatsapp-server-ip \
-    --region=southamerica-east1 \
-    --project=SEU_PROJECT_ID
+gcloud compute addresses create whatsapp-server-ip `
+    --region=southamerica-east1 `
+    --project=$PROJECT_ID
+
+# Capturar o IP reservado em variável
+$IP = gcloud compute addresses describe whatsapp-server-ip `
+    --region=southamerica-east1 `
+    --project=$PROJECT_ID `
+    --format="value(address)"
 
 # Associar o IP estático à VM
-gcloud compute instances add-access-config whatsapp-server \
-    --zone=southamerica-east1-b \
-    --access-config-name="External NAT" \
-    --address=$(gcloud compute addresses describe whatsapp-server-ip \
-        --region=southamerica-east1 \
-        --format="value(address)")
+gcloud compute instances add-access-config whatsapp-server `
+    --zone=southamerica-east1-b `
+    --access-config-name="External NAT" `
+    --address=$IP `
+    --project=$PROJECT_ID
 ```
 
 ### 2.4 Criar regras de firewall
 
-```bash
+```powershell
 # Liberar HTTP (porta 80)
-gcloud compute firewall-rules create allow-http \
-    --allow=tcp:80 \
-    --target-tags=http-server \
-    --description="Allow HTTP traffic" \
-    --project=SEU_PROJECT_ID
+gcloud compute firewall-rules create allow-http `
+    --allow=tcp:80 `
+    --target-tags=http-server `
+    --description="Allow HTTP traffic" `
+    --project=$PROJECT_ID
 
 # Liberar HTTPS (porta 443)
-gcloud compute firewall-rules create allow-https \
-    --allow=tcp:443 \
-    --target-tags=https-server \
-    --description="Allow HTTPS traffic" \
-    --project=SEU_PROJECT_ID
+gcloud compute firewall-rules create allow-https `
+    --allow=tcp:443 `
+    --target-tags=https-server `
+    --description="Allow HTTPS traffic" `
+    --project=$PROJECT_ID
 ```
 
 ---
@@ -173,11 +182,11 @@ gcloud compute firewall-rules create allow-https \
 
 Após criar a instância, conecte-se via SSH e execute:
 
-```bash
-# Conectar via gcloud SSH
-gcloud compute ssh whatsapp-server \
-    --zone=southamerica-east1-b \
-    --project=SEU_PROJECT_ID
+```powershell
+# Conectar via gcloud SSH (PowerShell local)
+gcloud compute ssh whatsapp-server `
+    --zone=southamerica-east1-b `
+    --project=$PROJECT_ID
 ```
 
 ```bash
@@ -214,15 +223,16 @@ pm2 startup   # configura autostart após reboot — copie e execute o comando g
 ## 4. Verificar o Deploy
 
 ```bash
-# Status do processo no PM2
+# Dentro da VM — status e logs (Linux)
 pm2 status
-
-# Logs em tempo real
 pm2 logs whatsapp-server
+```
 
-# Verificar IP externo da VM
-gcloud compute instances describe whatsapp-server \
-    --zone=southamerica-east1-b \
+```powershell
+# PowerShell local — verificar IP externo da VM
+gcloud compute instances describe whatsapp-server `
+    --zone=southamerica-east1-b `
+    --project=$PROJECT_ID `
     --format="value(networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 

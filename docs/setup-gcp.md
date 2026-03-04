@@ -11,6 +11,12 @@
 **Feature:** feat-028
 **Pré-requisito:** `gcloud` CLI instalado e autenticado com permissões de administrador do projeto
 
+> **Ambiente local:** todos os comandos deste documento são executados no **PowerShell (Windows)** com o Google Cloud SDK instalado. O caractere `` ` `` é a continuação de linha do PowerShell (equivalente ao `\` do bash). Defina as variáveis uma vez no início da sessão e reutilize nos comandos seguintes:
+> ```powershell
+> $PROJECT_ID = "SEU_PROJECT_ID"
+> $SA_EMAIL   = "whatsapp-server-sa@SEU_PROJECT_ID.iam.gserviceaccount.com"
+> ```
+
 ---
 
 ## 1. Pré-requisitos
@@ -47,10 +53,10 @@ Antes de executar os comandos abaixo, garanta que:
 
 A VM do Compute Engine precisa de uma Service Account para autenticar-se automaticamente com o GCP (Application Default Credentials — ADC). Execute o comando abaixo para obter o e-mail da Service Account vinculada à VM:
 
-```bash
+```powershell
 # Substitua NOME_DA_VM e ZONA pelos valores reais
-gcloud compute instances describe NOME_DA_VM \
-    --zone=ZONA \
+gcloud compute instances describe NOME_DA_VM `
+    --zone=ZONA `
     --format="value(serviceAccounts[0].email)"
 ```
 
@@ -60,16 +66,17 @@ gcloud compute instances describe NOME_DA_VM \
 ```
 
 > ⚠️ **Atenção:** Se o comando retornar vazio, a VM não possui Service Account configurada. Nesse caso, associe uma antes de continuar:
-> ```bash
+> ```powershell
 > # Criar uma Service Account dedicada (recomendado)
-> gcloud iam service-accounts create whatsapp-server-sa \
->     --display-name="WhatsApp Server Service Account"
+> gcloud iam service-accounts create whatsapp-server-sa `
+>     --display-name="WhatsApp Server Service Account" `
+>     --project=$PROJECT_ID
 >
 > # Associar à VM (requer parada temporária da instância)
 > gcloud compute instances stop NOME_DA_VM --zone=ZONA
-> gcloud compute instances set-service-account NOME_DA_VM \
->     --zone=ZONA \
->     --service-account=whatsapp-server-sa@SEU_PROJECT_ID.iam.gserviceaccount.com \
+> gcloud compute instances set-service-account NOME_DA_VM `
+>     --zone=ZONA `
+>     --service-account=$SA_EMAIL `
 >     --scopes=cloud-platform
 > gcloud compute instances start NOME_DA_VM --zone=ZONA
 > ```
@@ -84,16 +91,16 @@ Salve o e-mail da Service Account — ele será usado em todos os comandos a seg
 
 Permite que a VM **leia** versões de secrets no Secret Manager. É obrigatório para que a aplicação carregue as credenciais da sessão WhatsApp ao iniciar.
 
-```bash
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+```powershell
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretAccessor"
 ```
 
 **Exemplo com valores reais:**
-```bash
-gcloud projects add-iam-policy-binding meu-projeto-gcp \
-    --member="serviceAccount:123456789-compute@developer.gserviceaccount.com" \
+```powershell
+gcloud projects add-iam-policy-binding meu-projeto-gcp `
+    --member="serviceAccount:123456789-compute@developer.gserviceaccount.com" `
     --role="roles/secretmanager.secretAccessor"
 ```
 
@@ -103,9 +110,9 @@ gcloud projects add-iam-policy-binding meu-projeto-gcp \
 
 Permite que a VM **adicione novas versões** a secrets existentes. É obrigatório para que a aplicação persista atualizações da sessão WhatsApp (evento `creds.update` do Baileys).
 
-```bash
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+```powershell
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretVersionAdder"
 ```
 
@@ -117,9 +124,9 @@ Permite **listar e destruir versões antigas** do secret. É exigido pela funç�
 
 Sem este role, a aplicação continua funcionando (erros de limpeza são capturados como warning), mas as versões antigas se acumularão no Secret Manager ao longo do tempo.
 
-```bash
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+```powershell
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretVersionManager"
 ```
 
@@ -131,65 +138,51 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
 
 Permite que a VM grave logs no **Cloud Logging**. Recomendado para centralizar os logs do PM2 e da aplicação no console GCP.
 
-```bash
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+```powershell
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/logging.logWriter"
 ```
 
 ---
 
-### 3.5 Script completo — conceder todos os roles de uma vez
+### 3.5 Script completo — conceder todos os roles de uma vez (PowerShell)
 
-```bash
-#!/bin/bash
-# setup-iam.sh
-# Uso: ./setup-iam.sh SEU_PROJECT_ID SA_EMAIL
+```powershell
+# setup-iam.ps1 — execute no PowerShell com gcloud SDK instalado
+# Uso: .\setup-iam.ps1 -ProjectId SEU_PROJECT_ID -SaEmail SA_EMAIL
 
-PROJECT_ID=$1
-SA_EMAIL=$2
+param(
+    [Parameter(Mandatory)][string]$ProjectId,
+    [Parameter(Mandatory)][string]$SaEmail
+)
 
-if [ -z "$PROJECT_ID" ] || [ -z "$SA_EMAIL" ]; then
-  echo "Uso: $0 <PROJECT_ID> <SA_EMAIL>"
-  exit 1
-fi
+Write-Host "Concedendo roles à Service Account: $SaEmail"
+Write-Host "Projeto: $ProjectId"
+Write-Host "---"
 
-echo "Concedendo roles à Service Account: $SA_EMAIL"
-echo "Projeto: $PROJECT_ID"
-echo "---"
+$roles = @(
+    "roles/secretmanager.secretAccessor",
+    "roles/secretmanager.secretVersionAdder",
+    "roles/secretmanager.secretVersionManager",
+    "roles/logging.logWriter"
+)
 
-# Role obrigatório: leitura de secrets
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:$SA_EMAIL" \
-    --role="roles/secretmanager.secretAccessor" \
-    && echo "✓ secretAccessor concedido"
+foreach ($role in $roles) {
+    gcloud projects add-iam-policy-binding $ProjectId `
+        --member="serviceAccount:$SaEmail" `
+        --role=$role `
+        --quiet
+    Write-Host "✓ $role concedido"
+}
 
-# Role obrigatório: adição de novas versões de secrets
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:$SA_EMAIL" \
-    --role="roles/secretmanager.secretVersionAdder" \
-    && echo "✓ secretVersionAdder concedido"
-
-# Role obrigatório: listagem e destruição de versões antigas (limpeza automática)
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:$SA_EMAIL" \
-    --role="roles/secretmanager.secretVersionManager" \
-    && echo "✓ secretVersionManager concedido"
-
-# Role opcional: gravação de logs
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:$SA_EMAIL" \
-    --role="roles/logging.logWriter" \
-    && echo "✓ logWriter concedido"
-
-echo "---"
-echo "Setup IAM concluído."
+Write-Host "---"
+Write-Host "Setup IAM concluído."
 ```
 
 **Como executar:**
-```bash
-chmod +x setup-iam.sh
-./setup-iam.sh meu-projeto-gcp 123456789-compute@developer.gserviceaccount.com
+```powershell
+.\setup-iam.ps1 -ProjectId meu-projeto-gcp -SaEmail 123456789-compute@developer.gserviceaccount.com
 ```
 
 ---
@@ -200,9 +193,10 @@ O secret `whatsapp-baileys-auth` armazenará o estado de autenticação da sess�
 
 ### 4.1 Criar o secret com replicação automática
 
-```bash
-gcloud secrets create whatsapp-baileys-auth \
-    --replication-policy="automatic"
+```powershell
+gcloud secrets create whatsapp-baileys-auth `
+    --replication-policy="automatic" `
+    --project=$PROJECT_ID
 ```
 
 > **Replication policy `automatic`:** O GCP gerencia automaticamente a replicação entre regiões, garantindo disponibilidade e durabilidade. Não é necessário especificar regiões manualmente para este caso de uso.
@@ -236,11 +230,11 @@ SECRET_NAME=whatsapp-baileys-auth
 
 ### 5.1 Listar roles da Service Account no projeto
 
-```bash
-gcloud projects get-iam-policy SEU_PROJECT_ID \
-    --flatten="bindings[].members" \
-    --format="table(bindings.role)" \
-    --filter="bindings.members:SA_EMAIL"
+```powershell
+gcloud projects get-iam-policy $PROJECT_ID `
+    --flatten="bindings[].members" `
+    --format="table(bindings.role)" `
+    --filter="bindings.members:$SA_EMAIL"
 ```
 
 **Saída esperada (ao menos):**
@@ -255,32 +249,33 @@ roles/secretmanager.secretVersionManager
 
 Para testar que a Service Account tem acesso correto ao secret, você pode executar o comando abaixo **de dentro da VM** (onde as ADC estão configuradas automaticamente):
 
-```bash
+```powershell
 # Acesso à versão mais recente do secret (teste de leitura)
-gcloud secrets versions access latest \
-    --secret="whatsapp-baileys-auth" \
-    --project="SEU_PROJECT_ID"
+gcloud secrets versions access latest `
+    --secret="whatsapp-baileys-auth" `
+    --project=$PROJECT_ID
 ```
 
 Se o secret ainda não possui versões (primeira execução), o comando retornará erro `NOT_FOUND` — isso é esperado. A aplicação criará a primeira versão automaticamente quando o Pairing Code for solicitado pela página de configurações (`/configuracoes`).
 
 ### 5.3 Testar permissão de escrita (adicionar versão de teste)
 
-```bash
-echo '{"test": true}' | gcloud secrets versions add whatsapp-baileys-auth \
-    --data-file=- \
-    --project="SEU_PROJECT_ID"
+```powershell
+'{"test": true}' | gcloud secrets versions add whatsapp-baileys-auth `
+    --data-file=- `
+    --project=$PROJECT_ID
 ```
 
 Se bem-sucedido, o comando exibirá o número da versão criada. Você pode remover a versão de teste em seguida:
 
-```bash
+```powershell
 # Listar versões
-gcloud secrets versions list whatsapp-baileys-auth
+gcloud secrets versions list whatsapp-baileys-auth --project=$PROJECT_ID
 
 # Destruir a versão de teste (substitua NUMERO pela versão listada)
-gcloud secrets versions destroy NUMERO \
-    --secret="whatsapp-baileys-auth"
+gcloud secrets versions destroy NUMERO `
+    --secret="whatsapp-baileys-auth" `
+    --project=$PROJECT_ID
 ```
 
 ---

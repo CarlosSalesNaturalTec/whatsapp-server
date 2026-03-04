@@ -111,28 +111,33 @@ Configure as permissões IAM e o Secret Manager **antes** do primeiro deploy. Co
 docs/setup-gcp.md
 ```
 
-Resumo do que precisa estar configurado:
+Resumo do que precisa estar configurado (PowerShell):
 
-```bash
+```powershell
+# Definir variáveis — substitua pelos valores reais
+$PROJECT_ID = "SEU_PROJECT_ID"
+$SA_EMAIL   = "SA_EMAIL"
+
 # 1. Habilitar a API do Secret Manager
 gcloud services enable secretmanager.googleapis.com
 
 # 2. Conceder roles à Service Account da VM
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretAccessor"
 
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretVersionAdder"
 
-gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
-    --member="serviceAccount:SA_EMAIL" \
+gcloud projects add-iam-policy-binding $PROJECT_ID `
+    --member="serviceAccount:$SA_EMAIL" `
     --role="roles/secretmanager.secretVersionManager"
 
 # 3. Criar o secret para a sessão WhatsApp
-gcloud secrets create whatsapp-baileys-auth \
-    --replication-policy="automatic"
+gcloud secrets create whatsapp-baileys-auth `
+    --replication-policy="automatic" `
+    --project=$PROJECT_ID
 ```
 
 > Para instruções detalhadas e troubleshooting, acesse `docs/setup-gcp.md`.
@@ -145,8 +150,11 @@ Conecte-se à VM via SSH e execute os passos abaixo. **Execute apenas na primeir
 
 ### Passo 1 — Conectar à VM
 
-```bash
-gcloud compute ssh NOME_DA_VM --zone=ZONA
+```powershell
+# PowerShell local
+gcloud compute ssh NOME_DA_VM `
+    --zone=southamerica-east1-b `
+    --project=$PROJECT_ID
 ```
 
 ### Passo 2 — Instalar Node.js 20 LTS
@@ -361,11 +369,15 @@ pm2 save
 
 Para atualizar a aplicação com novas versões do código:
 
-```bash
-# 1. Conectar à VM
-gcloud compute ssh NOME_DA_VM --zone=ZONA
+```powershell
+# 1. Conectar à VM (PowerShell local)
+gcloud compute ssh NOME_DA_VM `
+    --zone=southamerica-east1-b `
+    --project=$PROJECT_ID
+```
 
-# 2. Navegar para o diretório da aplicação
+```bash
+# 2. Navegar para o diretório da aplicação (dentro da VM — Linux)
 cd /opt/whatsapp-server
 
 # 3. Atualizar código
@@ -449,9 +461,10 @@ http://IP_EXTERNO_DA_VM:3000/configuracoes → Página de configurações (conex
 
 Para obter o IP externo da VM:
 
-```bash
-gcloud compute instances describe NOME_DA_VM \
-    --zone=ZONA \
+```powershell
+gcloud compute instances describe NOME_DA_VM `
+    --zone=southamerica-east1-b `
+    --project=$PROJECT_ID `
     --format="value(networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 
