@@ -115,6 +115,10 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
     --member="serviceAccount:SA_EMAIL" \
     --role="roles/secretmanager.secretVersionAdder"
 
+gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
+    --member="serviceAccount:SA_EMAIL" \
+    --role="roles/secretmanager.secretVersionManager"
+
 # 3. Criar o secret para a sessão WhatsApp
 gcloud secrets create whatsapp-baileys-session \
     --replication-policy="automatic"

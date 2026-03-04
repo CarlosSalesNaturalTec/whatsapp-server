@@ -111,7 +111,23 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
 
 ---
 
-### 3.3 Role: `roles/logging.logWriter` *(opcional)*
+### 3.3 Role: `roles/secretmanager.secretVersionManager` *(obrigatório para limpeza automática)*
+
+Permite **listar e destruir versões antigas** do secret. É exigido pela função `destroyOldVersions` do `secretManagerAuthState.js`, que mantém apenas a versão mais recente ativa — evitando acúmulo de versões e consumo desnecessário de quota.
+
+Sem este role, a aplicação continua funcionando (erros de limpeza são capturados como warning), mas as versões antigas se acumularão no Secret Manager ao longo do tempo.
+
+```bash
+gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
+    --member="serviceAccount:SA_EMAIL" \
+    --role="roles/secretmanager.secretVersionManager"
+```
+
+> **Nota:** `secretVersionManager` é um superconjunto de `secretVersionAdder` — inclui `versions.add`, `versions.list`, `versions.destroy`, `versions.disable` e `versions.enable`. Caso prefira simplicidade, pode substituir `secretVersionAdder` por `secretVersionManager` e obter ambas as capacidades com um único role.
+
+---
+
+### 3.4 Role: `roles/logging.logWriter` *(opcional)*
 
 Permite que a VM grave logs no **Cloud Logging**. Recomendado para centralizar os logs do PM2 e da aplicação no console GCP.
 
@@ -123,7 +139,7 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
 
 ---
 
-### 3.4 Script completo — conceder todos os roles de uma vez
+### 3.5 Script completo — conceder todos os roles de uma vez
 
 ```bash
 #!/bin/bash
@@ -148,11 +164,17 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --role="roles/secretmanager.secretAccessor" \
     && echo "✓ secretAccessor concedido"
 
-# Role obrigatório: criação de versões de secrets
+# Role obrigatório: adição de novas versões de secrets
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SA_EMAIL" \
     --role="roles/secretmanager.secretVersionAdder" \
     && echo "✓ secretVersionAdder concedido"
+
+# Role obrigatório: listagem e destruição de versões antigas (limpeza automática)
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/secretmanager.secretVersionManager" \
+    && echo "✓ secretVersionManager concedido"
 
 # Role opcional: gravação de logs
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
@@ -226,6 +248,7 @@ gcloud projects get-iam-policy SEU_PROJECT_ID \
 ROLE
 roles/secretmanager.secretAccessor
 roles/secretmanager.secretVersionAdder
+roles/secretmanager.secretVersionManager
 ```
 
 ### 5.2 Verificar acesso ao secret pela Service Account
@@ -270,6 +293,7 @@ gcloud secrets versions destroy NUMERO \
 | **Replication Policy** | `automatic` |
 | **Role (obrigatório)** | `roles/secretmanager.secretAccessor` |
 | **Role (obrigatório)** | `roles/secretmanager.secretVersionAdder` |
+| **Role (obrigatório)** | `roles/secretmanager.secretVersionManager` |
 | **Role (opcional)** | `roles/logging.logWriter` |
 | **Autenticação** | Application Default Credentials (ADC) — automático na VM |
 

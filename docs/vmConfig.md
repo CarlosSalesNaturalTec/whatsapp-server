@@ -82,7 +82,8 @@ Criar uma Service Account dedicada com permissões mínimas (princípio do menor
 | Role | Finalidade |
 |---|---|
 | `roles/secretmanager.secretAccessor` | Leitura da sessão WhatsApp no Secret Manager |
-| `roles/secretmanager.secretVersionAdder` | Persistência de atualizações de sessão |
+| `roles/secretmanager.secretVersionAdder` | Adição de novas versões ao secret |
+| `roles/secretmanager.secretVersionManager` | Listagem e destruição de versões antigas (limpeza automática) |
 | `roles/logging.logWriter` | Gravação de logs no Cloud Logging *(opcional)* |
 
 > Detalhes de criação e concessão de roles em [setup-gcp.md](./setup-gcp.md).
@@ -109,6 +110,10 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
 gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
     --member="serviceAccount:$SA_EMAIL" \
     --role="roles/secretmanager.secretVersionAdder"
+
+gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/secretmanager.secretVersionManager"
 ```
 
 ### 2.2 Criar a instância
@@ -237,7 +242,7 @@ Após a inicialização, acesse `http://IP_DA_VM` no browser para confirmar que 
 | **Região / Zona** | `southamerica-east1` / `southamerica-east1-b` |
 | **IP externo** | Estático |
 | **Firewall** | TCP 80, 443 abertos; 22 restrito |
-| **Service Account** | Dedicada com roles mínimos |
+| **Service Account** | Dedicada — `secretAccessor`, `secretVersionAdder`, `secretVersionManager` |
 | **Node.js** | 20+ (via NodeSource) |
 | **Gerenciador de processos** | PM2 com `ecosystem.config.cjs` |
 | **Custo estimado** | ~$13/mês (e2-small + disco + IP estático) |

@@ -143,21 +143,59 @@ async function getSecretValue(secretName, projectId) {
 // -----------------------------------------------------------------
 
 /**
- * Persiste um novo valor no Google Secret Manager adicionando uma nova versão ao secret.
+ * Destrói todas as versões ENABLED do secret, exceto a versão recém-criada.
+ *
+ * Chamada imediatamente após addSecretVersion para manter apenas uma versão
+ * ativa — evita acúmulo de versões obsoletas que consomem quota e dificultam
+ * auditoria. Erros de limpeza são registrados como warning mas nunca propagados,
+ * pois a persistência da nova versão já foi concluída com sucesso.
+ *
+ * Requer IAM: roles/secretmanager.secretVersionManager (ou secretmanager.versions.destroy)
+ *
+ * @param {string} secretParent     - Caminho do secret (projects/ID/secrets/NAME)
+ * @param {string} latestVersionName - Nome completo da versão recém-criada (a preservar)
+ * @returns {Promise<void>}
+ */
+async function destroyOldVersions(secretParent, latestVersionName) {
+  try {
+    const [versions] = await client.listSecretVersions({
+      parent: secretParent,
+      filter: 'state=ENABLED',
+    });
+
+    const toDestroy = versions.filter((v) => v.name !== latestVersionName);
+
+    if (toDestroy.length === 0) return;
+
+    logger.debug({ count: toDestroy.length }, '[SecretManager] Destruindo versões antigas');
+
+    for (const version of toDestroy) {
+      try {
+        await client.destroySecretVersion({ name: version.name });
+        logger.debug({ version: version.name }, '[SecretManager] Versão antiga destruída');
+      } catch (err) {
+        // PERMISSION_DENIED → papel secretVersionManager não concedido ainda
+        logger.warn({ err, version: version.name }, '[SecretManager] Erro ao destruir versão antiga — ignorado');
+      }
+    }
+  } catch (err) {
+    // Falha na listagem não deve interromper o fluxo — a nova versão já está salva
+    logger.warn({ err }, '[SecretManager] Erro ao listar versões para limpeza — ignorado');
+  }
+}
+
+/**
+ * Persiste um novo valor no Google Secret Manager adicionando uma nova versão ao secret
+ * e destruindo automaticamente todas as versões anteriores habilitadas.
  *
  * Se o secret ainda não existir (primeira execução), ele é criado automaticamente
  * com política de replicação automática antes de adicionar a versão.
- * Versões anteriores do secret permanecem acessíveis no GCP para rollback manual.
  *
  * @param {string} secretName - Nome do secret no Secret Manager
  * @param {string} projectId  - ID do projeto GCP
  * @param {string} payload    - Conteúdo a ser salvo (string UTF-8, geralmente JSON serializado)
  * @returns {Promise<void>}
  * @throws {Error} Se ocorrer erro de permissão ou falha inesperada na API GCP
- *
- * @example
- * const payload = JSON.stringify({ creds, keys }, BufferJSON.replacer);
- * await saveSecretValue('whatsapp-baileys-session', 'meu-projeto', payload);
  */
 async function saveSecretValue(secretName, projectId, payload) {
   const parent = `projects/${projectId}/secrets/${secretName}`;
@@ -166,8 +204,11 @@ async function saveSecretValue(secretName, projectId, payload) {
   logger.debug({ secretName }, '[SecretManager] Salvando nova versão do secret');
 
   try {
-    await client.addSecretVersion({ parent, payload: { data } });
+    const [newVersion] = await client.addSecretVersion({ parent, payload: { data } });
     logger.debug({ secretName }, '[SecretManager] Nova versão do secret salva com sucesso');
+
+    // Mantém apenas a versão recém-criada — destrói todas as anteriores
+    await destroyOldVersions(parent, newVersion.name);
   } catch (err) {
     if (err.code !== GRPC_NOT_FOUND) {
       logger.error({ err, secretName, projectId }, '[SecretManager] Erro ao salvar secret');
@@ -184,8 +225,11 @@ async function saveSecretValue(secretName, projectId, payload) {
         secret: { replication: { automatic: {} } },
       });
 
-      await client.addSecretVersion({ parent, payload: { data } });
+      const [newVersion] = await client.addSecretVersion({ parent, payload: { data } });
       logger.info({ secretName }, '[SecretManager] Secret criado e primeira versão salva com sucesso');
+
+      // Primeira versão — nada a destruir, mas chamamos para consistência
+      await destroyOldVersions(parent, newVersion.name);
     } catch (createErr) {
       logger.error({ err: createErr, secretName, projectId }, '[SecretManager] Erro ao criar secret');
       throw createErr;
