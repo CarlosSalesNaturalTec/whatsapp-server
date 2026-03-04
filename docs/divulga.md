@@ -7,7 +7,11 @@ Criar página com serviços oferecidos  / Landing page coorporativa
 	Solicitação de Orçamentos (form ou zap)
 	Responsabilidade Social - Robô Educa
 
+dominio
+
 Atendimento por whatsapp
+
+Em quais plataformas devo anunciar meus serviços (google ads, youtube ads, linkedin, mercado livre, olx, outros)
 
 Criar modelos de Documentos de parceria
 Criar formulários para primeiro contato com cliente, captação de demanda. 

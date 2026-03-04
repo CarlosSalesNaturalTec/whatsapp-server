@@ -1,32 +1,46 @@
 /**
  * Arquivo: frontend/src/App.jsx
- * Descrição: Componente raiz — compõe o layout base com Header, seções e Footer
- * Feature: feat-026 - Implementar seção Hero da Landing Page
- * Criado em: 2026-02-26
+ * Descrição: Componente raiz com roteamento client-side simples baseado em pathname.
  *
- * Responsabilidades:
- * - Orquestrar Header fixo, seções de conteúdo e Footer
- * - Garantir estrutura HTML semântica (<header>, <main>, <footer>)
- * - Aplicar espaçamento superior no main para compensar o header fixo (h-16)
+ * Rotas:
+ *   /               → Landing Page (Header + HeroSection + Footer)
+ *   /configuracoes  → Página de configurações da conexão WhatsApp
+ *
+ * O roteamento usa window.history.pushState + evento 'popstate' — sem dependência
+ * de react-router-dom. O Express já serve index.html para qualquer rota (/*)
+ * via o catch-all em src/server/index.js, portanto acesso direto via URL funciona.
+ *
+ * Criado em: 2026-02-26
+ * Atualizado em: 2026-03-03 — roteamento client-side para /configuracoes
  */
 
+import { useState, useEffect } from 'react';
 import Header      from './components/Header.jsx';
 import HeroSection from './components/HeroSection.jsx';
 import Footer      from './components/Footer.jsx';
+import Settings    from './pages/Settings.jsx';
 
 /**
- * Componente raiz da Landing Page — Natural Tecnologia
- *
- * Estrutura semântica:
- *   <Header />      → cabeçalho fixo com navegação
- *   <main>
- *     <HeroSection /> → título, subtítulo, CTA e ilustração
- *   </main>
- *   <Footer />      → rodapé com contatos
+ * Componente raiz — detecta a rota atual e renderiza a página correspondente.
  *
  * @returns {JSX.Element}
  */
 function App() {
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    // Atualiza a rota ao navegar com pushState (NavLink) ou botão voltar/avançar do browser
+    const handlePopState = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Página de configurações
+  if (currentPath === '/configuracoes') {
+    return <Settings />;
+  }
+
+  // Landing Page (rota padrão — qualquer pathname não mapeado)
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900">
 

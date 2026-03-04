@@ -8,19 +8,32 @@
 import { useState } from 'react';
 
 /**
- * Link de navegação interno — ancora suavemente até a seção alvo
+ * Link de navegação — suporta âncoras internas e rotas client-side.
  *
- * @param {object} props
- * @param {string} props.href   - Âncora de destino (ex: "#servicos")
- * @param {string} props.label  - Texto exibido no link
- * @param {Function} props.onClick - Callback para fechar o menu mobile
+ * Para rotas SPA (ex: /configuracoes), usa pushState para evitar reload.
+ * Para âncoras (ex: /#servicos), comportamento padrão do browser.
+ *
+ * @param {object}   props
+ * @param {string}   props.href    - Destino (âncora ou rota)
+ * @param {string}   props.label   - Texto exibido
+ * @param {Function} [props.onClick] - Callback adicional (ex: fechar menu mobile)
  * @returns {JSX.Element}
  */
 function NavLink({ href, label, onClick }) {
+  const handleClick = (e) => {
+    // Navegação client-side para rotas SPA (sem # e sem reload)
+    if (href.startsWith('/') && !href.includes('#')) {
+      e.preventDefault();
+      window.history.pushState({}, '', href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+    onClick?.();
+  };
+
   return (
     <a
       href={href}
-      onClick={onClick}
+      onClick={handleClick}
       className="block text-gray-700 hover:text-green-600 font-medium transition-colors duration-200 py-2 md:py-0"
     >
       {label}
@@ -50,9 +63,10 @@ function Header() {
   /** Fecha o menu após clicar em um link (navegação mobile) */
   const fecharMenu = () => setMenuAberto(false);
 
+  // /#servicos e /#contato funcionam tanto na landing quanto na página de configurações
   const navLinks = [
-    { href: '#servicos', label: 'Serviços' },
-    { href: '#contato',  label: 'Contato'  },
+    { href: '/#servicos', label: 'Serviços' },
+    { href: '/#contato',  label: 'Contato'  },
   ];
 
   return (
@@ -76,11 +90,22 @@ function Header() {
               <NavLink key={link.href} href={link.href} label={link.label} onClick={fecharMenu} />
             ))}
             <a
-              href="#contato"
+              href="/#contato"
               className="bg-green-600 text-white px-5 py-2 rounded-full font-semibold hover:bg-green-700 transition-colors duration-200 text-sm"
             >
               Fale Conosco
             </a>
+            {/* Ícone de configurações — link discreto para /configuracoes */}
+            <NavLink
+              href="/configuracoes"
+              label={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-label="Configurações">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              }
+              onClick={fecharMenu}
+            />
           </nav>
 
           {/* Botão hamburger — mobile */}
@@ -115,8 +140,9 @@ function Header() {
           {navLinks.map((link) => (
             <NavLink key={link.href} href={link.href} label={link.label} onClick={fecharMenu} />
           ))}
+          <NavLink href="/configuracoes" label="Configurações" onClick={fecharMenu} />
           <a
-            href="#contato"
+            href="/#contato"
             onClick={fecharMenu}
             className="mt-3 block text-center bg-green-600 text-white px-5 py-2 rounded-full font-semibold hover:bg-green-700 transition-colors duration-200 text-sm"
           >

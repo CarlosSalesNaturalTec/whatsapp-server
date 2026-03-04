@@ -1,72 +1,66 @@
 /**
  * Arquivo: src/index.js
  * Descrição: Entry point da aplicação WhatsApp Server.
- *            Orquestra a inicialização do servidor HTTP Express e do bot WhatsApp
- *            em sequência, conectando todos os módulos da aplicação.
+ *            Inicializa exclusivamente o servidor HTTP Express no boot do PM2.
+ *            A conexão WhatsApp é acionada sob demanda via página de configurações
+ *            (POST /api/whatsapp/connect), não automaticamente ao iniciar.
  *
  * Responsabilidades:
- * - Inicializar o servidor Express (Landing Page + health check)
- * - Inicializar a conexão WhatsApp via Baileys (sessão ou Pairing Code)
- * - Registrar o handler de mensagens no socket ativo
+ * - Inicializar o servidor Express (Landing Page + /health + /api/whatsapp/*)
  * - Tratar erros críticos de boot com process.exit(1)
  *
- * Feature: feat-022 - Criar entry point src/index.js
+ * Nota de arquitetura:
+ *   O bot WhatsApp agora é gerenciado pelo ConnectionManager
+ *   (src/bot/connectionManager.js), que expõe connect() / disconnect() / getStatus()
+ *   consumidos pelas rotas em src/server/routes/whatsapp.js.
+ *   Não há mais acoplamento entre o boot da aplicação e a inicialização do bot.
+ *
  * Criado em: 2026-02-26
+ * Refatorado em: 2026-03-03 — conexão WhatsApp removida do boot (on-demand)
  */
 
 import logger from './utils/logger.js';
 import { startServer } from './server/index.js';
-import connectToWhatsApp from './bot/connection.js';
-import { registerMessageHandler } from './bot/handlers/messageHandler.js';
+import { connectionManager } from './bot/connectionManager.js';
 
 /**
  * Função principal de inicialização da aplicação.
  *
- * Orquestra o boot dos dois subsistemas em sequência definida:
+ * Inicia apenas o servidor HTTP — disponibiliza imediatamente:
+ *   GET  /             → Landing Page (React)
+ *   GET  /health       → health check
+ *   GET  /api/whatsapp/status     → status da conexão WhatsApp
+ *   GET  /api/whatsapp/config     → configuração pré-definida
+ *   POST /api/whatsapp/connect    → inicia conexão sob demanda
+ *   POST /api/whatsapp/disconnect → encerra conexão ativa
  *
- * 1. **Servidor Express** — iniciado primeiro para que o endpoint GET /health
- *    e a Landing Page fiquem disponíveis imediatamente, independente do estado
- *    da conexão WhatsApp. Permite que load balancers e monitores de uptime
- *    verifiquem a saúde da aplicação enquanto o bot ainda está conectando.
- *
- * 2. **Bot WhatsApp** — carrega a sessão do Google Secret Manager (ou inicializa
- *    credenciais em branco se for a primeira execução) e abre o WebSocket com
- *    o servidor WhatsApp Web. O socket retornado já tem os listeners
- *    creds.update, groups.update e connection.update registrados.
- *    A conexão se completa de forma assíncrona via eventos — connectToWhatsApp()
- *    retorna assim que o socket é criado, sem aguardar o 'open'.
- *
- * 3. **Handler de mensagens** — registra o listener messages.upsert no socket,
- *    ativando o processamento de comandos recebidos (ex: #iniciarBot#).
+ * A conexão WhatsApp permanece como DISCONNECTED até que o usuário
+ * acesse a página de configurações e clique em "Solicitar Pairing Code".
  *
  * @returns {Promise<void>}
- * @throws {Error} Se qualquer etapa de inicialização falhar de forma irrecuperável
+ * @throws {Error} Se o servidor HTTP falhar ao iniciar (ex: porta já em uso)
  */
 async function main() {
   logger.info('[App] Iniciando aplicação WhatsApp Server...');
 
-  // (1) Inicia o servidor HTTP — disponibiliza /health e Landing Page imediatamente
+  // Inicia o servidor HTTP — Landing Page e API disponíveis imediatamente
   await startServer();
 
-  // (2) Conecta ao WhatsApp — carrega sessão ou aguarda Pairing Code via log
-  const sock = await connectToWhatsApp();
+  // Verifica se há sessão WhatsApp registrada no Secret Manager.
+  // Se sim, reconecta automaticamente (sem exigir ação do usuário).
+  // Se não (primeira vez), permanece desconectado até o usuário acessar
+  // a página de configurações e solicitar o Pairing Code.
+  connectionManager.tryAutoConnect();
 
-  // (3) Registra o listener de mensagens no socket ativo
-  registerMessageHandler(sock);
-
-  logger.info('[App] Inicialização concluída — servidor HTTP ativo e bot WhatsApp conectando');
+  logger.info('[App] Servidor HTTP ativo — verificando sessão WhatsApp prévia...');
 }
 
 /**
  * Inicializa a aplicação e trata erros críticos de boot.
  *
- * Erros não recuperáveis durante a inicialização — como Secret Manager
- * inacessível, porta HTTP já em uso ou GCP_PROJECT_ID ausente — são logados
- * em nível 'error' e o processo é encerrado com código de saída 1.
- *
- * O código de saída 1 sinaliza falha ao PM2, que reinicia automaticamente
- * o processo respeitando restart_delay (5s) e max_restarts (10) configurados
- * no ecosystem.config.cjs, evitando loops de reinício em falhas persistentes.
+ * Erros não recuperáveis durante a inicialização (ex: porta HTTP já em uso)
+ * são logados em nível 'error' e o processo é encerrado com código de saída 1.
+ * O PM2 reinicia automaticamente respeitando restart_delay e max_restarts.
  */
 main().catch((err) => {
   logger.error({ err }, '[App] Falha crítica na inicialização — encerrando processo');

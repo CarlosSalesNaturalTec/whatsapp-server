@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import logger from '../utils/logger.js';
 import healthRouter from './routes/health.js';
+import whatsappRouter from './routes/whatsapp.js';
 
 /**
  * Resolve o caminho absoluto para frontend/dist/ a partir deste arquivo.
@@ -52,6 +53,13 @@ app.use(express.urlencoded({ extended: false }));
  * Registrada antes do static para garantir prioridade sobre os assets.
  */
 app.use(healthRouter);
+
+/**
+ * Rotas de gerenciamento da conexão WhatsApp — /api/whatsapp/*
+ * Registradas antes do static para que as chamadas de API não caiam
+ * no catch-all do React Router.
+ */
+app.use(whatsappRouter);
 
 // -----------------------------------------------------------------
 // Arquivos estáticos do frontend (React build)
