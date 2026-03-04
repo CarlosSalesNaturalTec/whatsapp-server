@@ -55,7 +55,7 @@ Servidor Node.js monolítico hospedado em GCP Compute Engine que gerencia um **b
 - Autenticação WhatsApp por Pairing Code acionada via **página de configurações** (`/configuracoes`)
 - Auto-reconexão no boot quando há sessão válida salva no Secret Manager
 - Sessão persistida de forma segura no Google Secret Manager
-- Reconexão automática em caso de queda de conexão
+- Reconexão automática com **backoff exponencial** em caso de queda de conexão (5s → 10s → 20s → … → 5min), com circuit breaker após 10 tentativas consecutivas sem sucesso
 - Resposta automática ao comando `#iniciarBot#` com a mensagem `Bot Iniciado`
 - Landing Page React servida pelo mesmo processo na rota raiz `/`
 - Endpoint `/health` para monitoramento de disponibilidade
@@ -422,7 +422,7 @@ Endpoints REST expostos pelo servidor para gerenciamento da conexão. Consumidos
 | `connecting` | Socket criado, aguardando resposta do servidor WhatsApp |
 | `awaiting_pairing` | Pairing code gerado — aguardando o usuário inserir no celular |
 | `connected` | Sessão autenticada e ativa |
-| `error` | Falha crítica (ex: `GCP_PROJECT_ID` ausente) |
+| `error` | Falha crítica — `GCP_PROJECT_ID` ausente **ou** circuit breaker acionado após 10 tentativas de reconexão sem sucesso |
 
 ---
 
@@ -537,16 +537,29 @@ curl http://localhost:3000/api/whatsapp/status
 
 **Solução:**
 ```bash
-# Verificar se o processo está vivo
+# Verificar se o processo está vivo e o status da conexão
 pm2 status
+curl http://localhost:3000/api/whatsapp/status
 
 # Verificar erros recentes
 pm2 logs whatsapp-app --err --lines 50
+```
 
-# Em caso de loggedOut (sessão revogada no celular)
-# A aplicação NÃO reconecta automaticamente — reautentica pela página de configurações:
-# Acesse http://IP_DA_VM:3000/configuracoes → Solicitar Pairing Code
-pm2 logs whatsapp-app --err --lines 20
+**Causas possíveis:**
+
+| Status retornado | Causa | Ação |
+|---|---|---|
+| `disconnected` | Queda momentânea — reconexão em andamento com backoff | Aguardar; acompanhar logs |
+| `error` (circuit breaker) | 10 tentativas de reconexão sem sucesso | Acesse `/configuracoes` → **Conectar** |
+| `error` (loggedOut) | Sessão revogada pelo usuário no celular (código 401) | Acesse `/configuracoes` → **Solicitar Pairing Code** |
+
+```bash
+# Confirmar circuit breaker nos logs:
+pm2 logs whatsapp-app --lines 30
+# Procure: [Manager] Circuit breaker acionado — muitas tentativas sem sucesso
+
+# Confirmar loggedOut nos logs:
+# Procure: [Manager] Sessão encerrada (loggedOut) — aguardando ação do usuário
 ```
 
 ---

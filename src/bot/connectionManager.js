@@ -37,6 +37,19 @@ export const STATUS = Object.freeze({
 });
 
 // -----------------------------------------------------------------
+// Constantes de backoff para reconexão
+// -----------------------------------------------------------------
+
+/** Delay inicial antes do primeiro retry (ms) */
+const RECONNECT_BASE_MS   = 5_000;
+
+/** Teto máximo do delay entre retries — ~5 minutos (ms) */
+const RECONNECT_MAX_MS    = 300_000;
+
+/** Número máximo de tentativas antes de acionar o circuit breaker */
+const RECONNECT_MAX_TRIES = 10;
+
+// -----------------------------------------------------------------
 // Classe ConnectionManager
 // -----------------------------------------------------------------
 
@@ -66,6 +79,14 @@ class ConnectionManager {
      * @type {boolean}
      */
     this._intentionalDisconnect = false;
+
+    /**
+     * Contador de tentativas consecutivas de reconexão.
+     * Zerado quando a conexão é estabelecida com sucesso ou ao desconectar
+     * manualmente. Usado pelo backoff exponencial em onDisconnected.
+     * @type {number}
+     */
+    this._reconnectAttempts = 0;
   }
 
   // ---------------------------------------------------------------
@@ -218,7 +239,8 @@ class ConnectionManager {
          * de mensagens no socket recém-autenticado.
          */
         onConnected: () => {
-          this._pairingCode = null;
+          this._pairingCode       = null;
+          this._reconnectAttempts = 0; // conexão bem-sucedida — zera o backoff
           this._setStatus(STATUS.CONNECTED);
           registerMessageHandler(this._sock);
           logger.info('[Manager] WhatsApp conectado — handler de mensagens registrado');
@@ -228,8 +250,10 @@ class ConnectionManager {
          * Chamado por connection.js quando connection.update === 'close'.
          *
          * Se shouldReconnect === true e o disconnect não foi intencional,
-         * agenda reconexão automática após 5s — comportamento idêntico ao
-         * que existia antes da refatoração.
+         * agenda reconexão com backoff exponencial + jitter.
+         * Após RECONNECT_MAX_TRIES tentativas consecutivas sem sucesso,
+         * aciona o circuit breaker: status vai para ERROR e aguarda
+         * intervenção manual do usuário.
          *
          * Se shouldReconnect === false (loggedOut / 401), a sessão foi revogada
          * pelo usuário no celular — exige nova autenticação via UI.
@@ -240,13 +264,31 @@ class ConnectionManager {
           this._sock = null;
 
           if (!this._intentionalDisconnect && shouldReconnect) {
-            logger.warn('[Manager] Conexão perdida — reconectando em 5s...');
+            if (this._reconnectAttempts >= RECONNECT_MAX_TRIES) {
+              logger.error(
+                { attempts: this._reconnectAttempts },
+                '[Manager] Circuit breaker acionado — muitas tentativas sem sucesso. Aguardando ação do usuário.',
+              );
+              this._reconnectAttempts = 0;
+              this._setStatus(STATUS.ERROR);
+              this._intentionalDisconnect = false;
+              return;
+            }
+
+            const delay = this._getReconnectDelay();
+            this._reconnectAttempts++;
+
+            logger.warn(
+              { attempt: this._reconnectAttempts, delayMs: delay },
+              '[Manager] Conexão perdida — reconectando com backoff...',
+            );
+
             this._setStatus(STATUS.DISCONNECTED); // permite que connect() passe pelo guard
             setTimeout(
               () => this.connect(this._phoneNumber).catch((err) => {
                 logger.error({ err }, '[Manager] Erro ao reconectar');
               }),
-              5_000,
+              delay,
             );
           } else {
             if (this._intentionalDisconnect) {
@@ -283,6 +325,7 @@ class ConnectionManager {
   disconnect() {
     this._intentionalDisconnect = true;
     this._pairingCode           = null;
+    this._reconnectAttempts     = 0; // desconexão intencional — reseta o backoff
 
     const sock    = this._sock;
     this._sock    = null;
@@ -300,8 +343,34 @@ class ConnectionManager {
   }
 
   // ---------------------------------------------------------------
-  // Utilitário interno
+  // Utilitários internos
   // ---------------------------------------------------------------
+
+  /**
+   * Calcula o delay da próxima tentativa de reconexão usando backoff
+   * exponencial com jitter de ±20%.
+   *
+   * Fórmula: min(BASE * 2^attempt, MAX) ± 20% de jitter
+   *
+   * Exemplos com _reconnectAttempts atual (antes do incremento):
+   *   0 →  5s   (±1s)
+   *   1 → 10s   (±2s)
+   *   2 → 20s   (±4s)
+   *   3 → 40s   (±8s)
+   *   4 → 80s   (±16s)
+   *   5 → 160s  (±32s)
+   *   6+ → 300s (±60s) — teto
+   *
+   * O jitter evita que múltiplas instâncias (ex: cluster) reconectem
+   * simultaneamente após uma queda de infraestrutura.
+   *
+   * @returns {number} Delay em milissegundos
+   */
+  _getReconnectDelay() {
+    const base   = Math.min(RECONNECT_BASE_MS * (2 ** this._reconnectAttempts), RECONNECT_MAX_MS);
+    const jitter = base * (Math.random() * 0.4 - 0.2); // ±20%
+    return Math.round(base + jitter);
+  }
 
   /**
    * Atualiza o status e emite log estruturado.
