@@ -131,7 +131,7 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
     --role="roles/secretmanager.secretVersionManager"
 
 # 3. Criar o secret para a sessão WhatsApp
-gcloud secrets create whatsapp-baileys-session \
+gcloud secrets create whatsapp-baileys-auth \
     --replication-policy="automatic"
 ```
 
@@ -208,7 +208,7 @@ Adicione as linhas abaixo (substituindo pelos valores reais):
 
 ```
 GCP_PROJECT_ID="seu-projeto-gcp-id"
-SECRET_NAME="whatsapp-baileys-session"
+SECRET_NAME="whatsapp-baileys-auth"
 PHONE_NUMBER="5511999999999"
 PORT="3000"
 LOG_LEVEL="warn"
@@ -239,7 +239,7 @@ nano .env
 |---|---|---|---|
 | `NODE_ENV` | Sim | Ambiente de execução | `production` |
 | `GCP_PROJECT_ID` | Sim | ID do projeto GCP | `meu-projeto-123` |
-| `SECRET_NAME` | Sim | Nome do secret no Secret Manager | `whatsapp-baileys-session` |
+| `SECRET_NAME` | Sim | Nome do secret no Secret Manager | `whatsapp-baileys-auth` |
 | `PHONE_NUMBER` | Sim | Número WhatsApp em formato E.164 sem `+` | `5511999999999` |
 | `PORT` | Não | Porta HTTP do servidor Express | `3000` |
 | `LOG_LEVEL` | Não | Nível de log (pino) | `warn` |
@@ -399,7 +399,7 @@ npm run build:frontend
 pm2 reload whatsapp-app
 ```
 
-> **Sessão WhatsApp:** Versionada automaticamente pelo Secret Manager. Para rollback da sessão, reative uma versão anterior via GCP Console: **Secret Manager → whatsapp-baileys-session → Versões**.
+> **Sessão WhatsApp:** Versionada automaticamente pelo Secret Manager. Para rollback da sessão, reative uma versão anterior via GCP Console: **Secret Manager → whatsapp-baileys-auth → Versões**.
 
 ---
 

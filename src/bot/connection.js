@@ -51,7 +51,7 @@ const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID;
  * Nome do secret no Secret Manager que armazena a sessão WhatsApp.
  * Valor padrão alinhado com o .env.example e a documentação do projeto.
  */
-const SECRET_NAME = process.env.SECRET_NAME || 'whatsapp-baileys-session';
+const SECRET_NAME = process.env.SECRET_NAME || 'whatsapp-baileys-auth';
 
 // -----------------------------------------------------------------
 // Cache de metadados de grupos

@@ -22,7 +22,7 @@ import { registerMessageHandler } from './handlers/messageHandler.js';
 import { getSecretValue } from './auth/secretManagerAuthState.js';
 
 const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID;
-const SECRET_NAME    = process.env.SECRET_NAME || 'whatsapp-baileys-session';
+const SECRET_NAME    = process.env.SECRET_NAME || 'whatsapp-baileys-auth';
 
 // -----------------------------------------------------------------
 // Constantes de status

@@ -337,7 +337,7 @@ baileys_auth_info/
 | **Propósito** | Armazenar e recuperar o estado de autenticação da sessão WhatsApp |
 | **SDK** | `@google-cloud/secret-manager` v5.x |
 | **Autenticação com GCP** | Application Default Credentials (ADC) — automático na VM do Compute Engine |
-| **Secret Name** | `whatsapp-baileys-session` (configurável via env) |
+| **Secret Name** | `whatsapp-baileys-auth` (configurável via env) |
 | **Operações** | `accessSecretVersion` (leitura) + `addSecretVersion` (escrita) |
 
 **Permissões IAM necessárias na Service Account da VM:**
@@ -371,7 +371,7 @@ NODE_ENV=development
 
 # GCP
 GCP_PROJECT_ID=seu-projeto-gcp-aqui
-SECRET_NAME=whatsapp-baileys-session
+SECRET_NAME=whatsapp-baileys-auth
 
 # WhatsApp
 PHONE_NUMBER=5511999999999
@@ -418,7 +418,7 @@ module.exports = {
     env: {
       NODE_ENV:       'production',
       GCP_PROJECT_ID: 'seu-projeto-gcp',
-      SECRET_NAME:    'whatsapp-baileys-session',
+      SECRET_NAME:    'whatsapp-baileys-auth',
       PHONE_NUMBER:   '5511999999999',
       PORT:           '3000',
       LOG_LEVEL:      'warn',

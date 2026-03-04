@@ -102,7 +102,7 @@ gcloud projects add-iam-policy-binding SEU_PROJECT_ID \
     --role="roles/secretmanager.secretAccessor"
 
 # Crie o secret (primeira vez)
-gcloud secrets create whatsapp-baileys-session --replication-policy="automatic"
+gcloud secrets create whatsapp-baileys-auth --replication-policy="automatic"
 ```
 
 ### 3.2 Implementação do Auth State customizado
@@ -147,7 +147,7 @@ async function saveSecretValue(secretName, projectId, payload) {
 
 export async function useSecretManagerAuthState(
   projectId,
-  secretName = 'whatsapp-baileys-session'
+  secretName = 'whatsapp-baileys-auth'
 ) {
   const raw   = await getSecretValue(secretName, projectId);
   const creds = raw

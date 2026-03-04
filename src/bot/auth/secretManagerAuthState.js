@@ -98,13 +98,13 @@ function createDebounce(fn, delayMs) {
  * Acessa sempre a versão 'latest' do secret — garantindo que a sessão
  * WhatsApp mais recente seja carregada após cada atualização de credenciais.
  *
- * @param {string} secretName - Nome do secret no Secret Manager (ex: 'whatsapp-baileys-session')
+ * @param {string} secretName - Nome do secret no Secret Manager (ex: 'whatsapp-baileys-auth')
  * @param {string} projectId  - ID do projeto GCP (ex: 'meu-projeto-123456')
  * @returns {Promise<string|null>} Conteúdo do secret em string UTF-8, ou null se não existir
  * @throws {Error} Se ocorrer erro de permissão, rede ou qualquer falha não-NOT_FOUND
  *
  * @example
- * const raw = await getSecretValue('whatsapp-baileys-session', 'meu-projeto');
+ * const raw = await getSecretValue('whatsapp-baileys-auth', 'meu-projeto');
  * if (raw === null) {
  *   // Primeira execução — secret ainda não existe
  * } else {
@@ -256,7 +256,7 @@ async function saveSecretValue(secretName, projectId, payload) {
  * O `saveCreds` é passado para sock.ev.on('creds.update', saveCreds).
  *
  * @param {string} projectId              - ID do projeto GCP
- * @param {string} [secretName]           - Nome do secret (padrão: 'whatsapp-baileys-session')
+ * @param {string} [secretName]           - Nome do secret (padrão: 'whatsapp-baileys-auth')
  * @returns {Promise<{ state: object, saveCreds: Function }>}
  * @throws {Error} Se falhar ao ler o secret por motivo diferente de NOT_FOUND
  *
@@ -267,7 +267,7 @@ async function saveSecretValue(secretName, projectId, payload) {
  */
 async function useSecretManagerAuthState(
   projectId,
-  secretName = 'whatsapp-baileys-session'
+  secretName = 'whatsapp-baileys-auth'
 ) {
   // Carrega o estado persistido ou inicializa do zero na primeira execução
   const raw = await getSecretValue(secretName, projectId);

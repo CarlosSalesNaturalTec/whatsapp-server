@@ -444,7 +444,7 @@
         {
           "id": "feat-028",
           "titulo": "Configurar permissões IAM no GCP para a Service Account da VM",
-          "descricao": "Documentar e executar os comandos gcloud para conceder à Service Account da VM os roles necessários: roles/secretmanager.secretAccessor e roles/secretmanager.secretVersionAdder. Criar o secret 'whatsapp-baileys-session' no Secret Manager com replication automática.",
+          "descricao": "Documentar e executar os comandos gcloud para conceder à Service Account da VM os roles necessários: roles/secretmanager.secretAccessor e roles/secretmanager.secretVersionAdder. Criar o secret 'whatsapp-baileys-auth' no Secret Manager com replication automática.",
           "estimativa": "30min",
           "prioridade": "alta",
           "dependencias": ["feat-004"],
