@@ -262,7 +262,7 @@ gcloud secrets versions access latest \
     --project="SEU_PROJECT_ID"
 ```
 
-Se o secret ainda não possui versões (primeira execução), o comando retornará erro `NOT_FOUND` — isso é esperado. A aplicação criará a primeira versão automaticamente na autenticação inicial.
+Se o secret ainda não possui versões (primeira execução), o comando retornará erro `NOT_FOUND` — isso é esperado. A aplicação criará a primeira versão automaticamente quando o Pairing Code for solicitado pela página de configurações (`/configuracoes`).
 
 ### 5.3 Testar permissão de escrita (adicionar versão de teste)
 

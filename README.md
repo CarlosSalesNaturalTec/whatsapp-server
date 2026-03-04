@@ -15,6 +15,7 @@ Servidor Node.js monolítico hospedado em GCP Compute Engine que gerencia um **b
 - [Iniciar a Aplicação](#iniciar-a-aplicação)
 - [Comandos de Operação](#comandos-de-operação)
 - [Deploy (Atualização de Código)](#deploy-atualização-de-código)
+- [API WhatsApp](#api-whatsapp)
 - [Verificação de Saúde](#verificação-de-saúde)
 - [Troubleshooting](#troubleshooting)
 - [Estrutura do Projeto](#estrutura-do-projeto)
@@ -24,25 +25,35 @@ Servidor Node.js monolítico hospedado em GCP Compute Engine que gerencia um **b
 ## Visão Geral
 
 ```
-┌─────────────────────────────────────────┐
-│         GCP Compute Engine (VM)         │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │       Processo Node.js (PM2)     │   │
-│  │                                  │   │
-│  │  WhatsApp Bot  │  Express HTTP   │   │
-│  │  (Baileys v7)  │  porta 3000     │   │
-│  └──────────────────────────────────┘   │
-│                │                        │
-│  ┌─────────────────────┐               │
-│  │  Google Secret Mgr  │               │
-│  │  (sessão WhatsApp)  │               │
-│  └─────────────────────┘               │
-└─────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│              GCP Compute Engine (VM)               │
+│                                                    │
+│  ┌─────────────────────────────────────────────┐   │
+│  │          Processo Node.js (PM2)             │   │
+│  │                                             │   │
+│  │  ConnectionManager  │  Express HTTP         │   │
+│  │  (Baileys v7)       │  porta 3000           │   │
+│  │                     │                       │   │
+│  │                     │  GET  /               │   │
+│  │                     │  GET  /configuracoes  │   │
+│  │                     │  GET  /health         │   │
+│  │                     │  GET  /api/whatsapp/status  │
+│  │                     │  GET  /api/whatsapp/config  │
+│  │                     │  POST /api/whatsapp/connect │
+│  │                     │  POST /api/whatsapp/disconnect │
+│  └─────────────────────────────────────────────┘   │
+│                     │                              │
+│  ┌──────────────────────────┐                      │
+│  │   Google Secret Manager  │                      │
+│  │   (sessão WhatsApp)      │                      │
+│  └──────────────────────────┘                      │
+└────────────────────────────────────────────────────┘
 ```
 
 **Funcionalidades principais:**
-- Autenticação WhatsApp por Pairing Code (sem QR Code)
+- Servidor HTTP sobe imediatamente — WhatsApp **não** é conectado no boot
+- Autenticação WhatsApp por Pairing Code acionada via **página de configurações** (`/configuracoes`)
+- Auto-reconexão no boot quando há sessão válida salva no Secret Manager
 - Sessão persistida de forma segura no Google Secret Manager
 - Reconexão automática em caso de queda de conexão
 - Resposta automática ao comando `#iniciarBot#` com a mensagem `Bot Iniciado`
@@ -253,27 +264,30 @@ pm2 startup
 # Execute o comando que o PM2 sugerir na saída (começa com "sudo env PATH=...")
 ```
 
-### Autenticação inicial do WhatsApp (Pairing Code)
+### Autenticação inicial do WhatsApp (Pairing Code via página de configurações)
 
-Na primeira execução, a aplicação não possui sessão WhatsApp salva. Um **Pairing Code** será gerado automaticamente:
+O Pairing Code **não é mais gerado automaticamente no boot**. A conexão WhatsApp é iniciada sob demanda pelo administrador pela página de configurações.
 
-```bash
-# Acompanhe os logs em tempo real
-pm2 logs whatsapp-app --lines 50
-```
+**Comportamento no boot:**
+- Se houver sessão válida salva no Secret Manager → reconecta automaticamente (sem ação do usuário)
+- Se não houver sessão (primeira vez) → servidor HTTP sobe normalmente, WhatsApp permanece desconectado
 
-Procure no log uma linha similar a:
+**Para vincular a conta na primeira execução:**
 
-```
-INFO  Pairing Code: ABCD-1234
-```
+1. Acesse `http://IP_DA_VM:3000/configuracoes` no browser
+2. Verifique que o número pré-preenchido está correto (carregado da variável `PHONE_NUMBER`)
+3. Clique em **Solicitar Pairing Code**
+4. Aguarde o código aparecer na tela (status: *Aguardando pareamento*)
+5. No celular: **WhatsApp → Configurações → Dispositivos Vinculados → Vincular com número de telefone**
+6. Insira o código exibido na tela
 
-Para vincular a conta:
-1. Abra o **WhatsApp** no celular
-2. Acesse **Configurações → Dispositivos Vinculados → Vincular um Dispositivo**
-3. Selecione **Vincular com número de telefone** e insira o código exibido no log
+Após a autenticação bem-sucedida, a sessão é salva automaticamente no Secret Manager. Nas próximas inicializações, a reconexão ocorrerá sem necessidade de novo código.
 
-Após a autenticação bem-sucedida, a sessão será salva automaticamente no Secret Manager. Nas próximas inicializações, a reconexão ocorrerá sem necessidade de novo código.
+> **Diagnóstico via log:** Se precisar confirmar o Pairing Code nos logs da VM:
+> ```bash
+> pm2 logs whatsapp-app --lines 50
+> # Procure pela linha: [Manager] Pairing Code disponível para o usuário
+> ```
 
 ---
 
@@ -389,6 +403,29 @@ pm2 reload whatsapp-app
 
 ---
 
+## API WhatsApp
+
+Endpoints REST expostos pelo servidor para gerenciamento da conexão. Consumidos internamente pela página de configurações (`/configuracoes`).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/api/whatsapp/status` | Status atual + pairing code (usado em polling a cada 2s) |
+| `GET` | `/api/whatsapp/config` | Número pré-configurado (`PHONE_NUMBER` da env) |
+| `POST` | `/api/whatsapp/connect` | Inicia conexão / solicita pairing code |
+| `POST` | `/api/whatsapp/disconnect` | Encerra conexão ativa |
+
+**Estados possíveis em `/api/whatsapp/status`:**
+
+| Status | Significado |
+|---|---|
+| `disconnected` | Nenhuma conexão ativa |
+| `connecting` | Socket criado, aguardando resposta do servidor WhatsApp |
+| `awaiting_pairing` | Pairing code gerado — aguardando o usuário inserir no celular |
+| `connected` | Sessão autenticada e ativa |
+| `error` | Falha crítica (ex: `GCP_PROJECT_ID` ausente) |
+
+---
+
 ## Verificação de Saúde
 
 ### Endpoint /health
@@ -401,12 +438,13 @@ curl http://localhost:3000/health
 # {"status":"ok","timestamp":"2026-02-26T00:00:00.000Z","uptime":12345.67}
 ```
 
-### Verificar Landing Page
+### Verificar Landing Page e Página de Configurações
 
 Acesse via browser o IP externo da VM:
 
 ```
-http://IP_EXTERNO_DA_VM:3000
+http://IP_EXTERNO_DA_VM:3000               → Landing Page
+http://IP_EXTERNO_DA_VM:3000/configuracoes → Página de configurações (conexão WhatsApp)
 ```
 
 Para obter o IP externo da VM:
@@ -448,16 +486,39 @@ pm2 restart whatsapp-app
 
 ---
 
-### Pairing Code não aparece no log
+### Pairing Code não aparece na página de configurações
 
-**Sintoma:** A aplicação inicia mas nenhum Pairing Code é exibido.
+**Sintoma:** Clicou em "Solicitar Pairing Code" mas o status não avança ou o código não aparece.
 
-**Solução:**
+**Verificações:**
+
+1. Confirme que a requisição chegou ao backend:
+   ```bash
+   pm2 logs whatsapp-app --lines 30
+   # Deve aparecer: [Route] POST /api/whatsapp/connect
+   # Deve aparecer: [Manager] Pairing Code disponível para o usuário
+   ```
+
+2. Se o log não aparecer, verifique o nível de log (deve ser `info` ou `debug`):
+   ```bash
+   # Alterar temporariamente no ecosystem.config.cjs: LOG_LEVEL: 'info'
+   pm2 restart whatsapp-app
+   ```
+
+3. Verifique se o `GCP_PROJECT_ID` está definido — sem ele o auth state falha silenciosamente:
+   ```bash
+   echo $GCP_PROJECT_ID
+   ```
+
+**Teste manual da API:**
 ```bash
-# Verificar nível de log (deve ser info ou debug para ver o código)
-# Alterar temporariamente no ecosystem.config.cjs: LOG_LEVEL: 'info'
-pm2 restart whatsapp-app
-pm2 logs whatsapp-app --lines 50
+curl -X POST http://localhost:3000/api/whatsapp/connect \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber":"5511999999999"}'
+# Resposta esperada: 202 Accepted
+
+curl http://localhost:3000/api/whatsapp/status
+# Deve retornar status: "awaiting_pairing" com o pairingCode
 ```
 
 ---
@@ -482,9 +543,10 @@ pm2 status
 # Verificar erros recentes
 pm2 logs whatsapp-app --err --lines 50
 
-# Em caso de connectionReplaced (sessão usada em outro dispositivo)
-# A aplicação NÃO reconecta automaticamente neste caso — reconecte manualmente:
-pm2 restart whatsapp-app
+# Em caso de loggedOut (sessão revogada no celular)
+# A aplicação NÃO reconecta automaticamente — reautentica pela página de configurações:
+# Acesse http://IP_DA_VM:3000/configuracoes → Solicitar Pairing Code
+pm2 logs whatsapp-app --err --lines 20
 ```
 
 ---
@@ -510,9 +572,10 @@ pm2 reload whatsapp-app
 whatsapp-server/
 │
 ├── src/                              # Código-fonte do backend/bot
-│   ├── index.js                      # Entry point — inicializa bot + servidor HTTP
+│   ├── index.js                      # Entry point — inicia HTTP + tryAutoConnect()
 │   ├── bot/
-│   │   ├── connection.js             # Conexão Baileys, Pairing Code, reconexão
+│   │   ├── connectionManager.js      # Singleton: ciclo de vida da conexão WhatsApp
+│   │   ├── connection.js             # Fábrica do socket Baileys (aceita callbacks)
 │   │   ├── auth/
 │   │   │   └── secretManagerAuthState.js   # Auth state com Secret Manager
 │   │   └── handlers/
@@ -520,15 +583,18 @@ whatsapp-server/
 │   ├── server/
 │   │   ├── index.js                  # App Express + arquivos estáticos
 │   │   └── routes/
-│   │       └── health.js             # GET /health
+│   │       ├── health.js             # GET /health
+│   │       └── whatsapp.js           # GET|POST /api/whatsapp/*
 │   └── utils/
 │       └── logger.js                 # Instância pino configurada
 │
-├── frontend/                         # Landing Page (React + Vite + Tailwind)
+├── frontend/                         # Landing Page + Configurações (React + Vite + Tailwind)
 │   ├── src/
 │   │   ├── main.jsx
-│   │   ├── App.jsx
-│   │   └── components/
+│   │   ├── App.jsx                   # Roteamento SPA (/ e /configuracoes)
+│   │   ├── components/               # Header, Footer, seções da Landing Page
+│   │   └── pages/
+│   │       └── Settings.jsx          # Página de configurações — gerencia conexão WhatsApp
 │   ├── dist/                         # Build de produção (gerado, não versionado)
 │   └── package.json
 │
@@ -536,7 +602,8 @@ whatsapp-server/
 │   ├── requirements.md               # Requisitos funcionais
 │   ├── contextDoc.md                 # Arquitetura e padrões
 │   ├── referenceDoc.md               # Referências técnicas
-│   └── setup-gcp.md                  # Guia IAM e Secret Manager
+│   ├── setup-gcp.md                  # Guia IAM e Secret Manager
+│   └── vmConfig.md                   # Configuração da VM no GCP
 │
 ├── ecosystem.config.cjs              # Configuração PM2
 ├── .env.example                      # Modelo de variáveis de ambiente

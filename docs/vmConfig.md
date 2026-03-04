@@ -226,7 +226,11 @@ gcloud compute instances describe whatsapp-server \
     --format="value(networkInterfaces[0].accessConfigs[0].natIP)"
 ```
 
-Após a inicialização, acesse `http://IP_DA_VM` no browser para confirmar que a Landing Page está sendo servida.
+Após a inicialização:
+1. Acesse `http://IP_DA_VM` no browser para confirmar que a Landing Page está sendo servida.
+2. Acesse `http://IP_DA_VM/configuracoes` para solicitar o Pairing Code e vincular a conta WhatsApp.
+
+> **Nota:** Na primeira execução, o servidor HTTP sobe imediatamente mas o WhatsApp permanece desconectado até que o Pairing Code seja solicitado pela página de configurações. Se houver sessão válida salva no Secret Manager, a reconexão ocorre automaticamente sem ação do usuário.
 
 ---
 
