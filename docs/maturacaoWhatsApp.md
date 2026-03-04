@@ -2,11 +2,11 @@
 
 * User Agent e Nome da Sessão: No Baileys, você pode definir o nome da plataforma de conexão. Evite nomes óbvios como "Bot_System". Use algo que simule um navegador comum ou o próprio WhatsApp Web.
 
-* IP e Geolocalização: Se o seu chip é brasileiro, o servidor onde o Baileys está rodando deve, preferencialmente, usar um IP do Brasil. O WhatsApp estranha um chip de SP conectando subitamente de um data center em Frankfurt.
+* IP e Geolocalização: Se o seu chip é brasileiro, o servidor onde o Baileys está rodando deve, preferencialmente, usar um IP do Brasil. O WhatsApp estranha um chip de SP conectando subitamente de um data center em Frankfurt. => Utilizar : southamerica-east1 (São Paulo)
 
 * A automação não deve enviar mensagens rápido demais (use delays aleatórios entre 5 e 15 segundos).
 
-* O servidor onde o Baileys roda sofrer muitas quedas de conexão, forçando o socket a reautenticar várias vezes por hora.
+* ===>>> Em caso do servidor onde o Baileys roda sofrer muitas quedas de conexão, forçando o socket a reautenticar várias vezes. Isto gera alguma implicação ? O que o código prevê com relação a reinicializações do servidor?
 
 * Timeout do Socket: No código do Baileys, se você não configurar o defaultQueryTimeoutMs, a conexão pode cair se a sincronização inicial demorar muito (comum em contas com milhares de chats).
 

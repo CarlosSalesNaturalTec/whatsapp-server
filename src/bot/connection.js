@@ -124,8 +124,8 @@ async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDi
 
     logger,
 
-    /** Identifica o cliente como Ubuntu Desktop — preferido em ambientes headless */
-    browser: Browsers.ubuntu('WhatsApp Server'),
+    /** Identifica o cliente como WhatsApp Web — simula sessão web legítima */
+    browser: Browsers.ubuntu('Chrome'),
 
     /** Produção: autenticação exclusiva via Pairing Code, sem QR no terminal */
     printQRInTerminal: false,
