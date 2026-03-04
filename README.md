@@ -564,6 +564,22 @@ pm2 logs whatsapp-app --lines 30
 
 ---
 
+### Timeout na sincronização inicial (contas com histórico grande)
+
+**Sintoma:** Log exibe `Query timed out` ou `Connection Failure` logo após o boot, especialmente nas primeiras tentativas de reconexão.
+
+**Causa:** O `defaultQueryTimeoutMs` padrão é `60s`. Contas com milhares de chats ou ambientes com alta latência (ex: VM em região distante dos servidores WA) podem exceder esse limite durante a sincronização inicial.
+
+**Solução:** Aumentar o timeout em `src/bot/connection.js`:
+
+```javascript
+defaultQueryTimeoutMs: 120_000,  // aumentar de 60s para 120s
+```
+
+> Recomendado especialmente ao migrar a VM para uma nova região (ex: `southamerica-east1`), momento em que a latência até os servidores do WhatsApp pode ser diferente.
+
+---
+
 ### Porta 3000 já em uso
 
 **Sintoma:** Erro `EADDRINUSE` ao iniciar.
