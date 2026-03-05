@@ -150,8 +150,18 @@ async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDi
   // Listener: creds.update
   // CRÍTICO: toda atualização de credencial deve ser persistida.
   // Ausência deste listener corrompe a sessão e exige novo Pairing Code.
+  // O wrapper try/catch evita unhandled rejection caso o Secret Manager
+  // falhe pontualmente — o erro é logado mas não derruba o processo.
+  // As credenciais permanecem atualizadas em memória; a próxima escrita
+  // bem-sucedida (keys.set debounced ou creds.update seguinte) as persiste.
   // ---------------------------------------------------------------
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('creds.update', async () => {
+    try {
+      await saveCreds();
+    } catch (err) {
+      logger.error({ err }, '[Connection] Falha ao persistir creds.update no Secret Manager — sessão pode estar desatualizada');
+    }
+  });
 
   // Mantém o cache de grupos atualizado com os eventos recebidos do WA
   sock.ev.on('groups.update', (events) => {
