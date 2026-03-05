@@ -210,6 +210,12 @@ async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDi
       pairingCodeRequested = true;
       logger.info({ phoneNumber }, '[Connection] Solicitando Pairing Code...');
 
+      // Aguarda 1,5s para que o handshake interno do protocolo WA
+      // complete antes de enviar o pedido de Pairing Code.
+      // Sem este delay, requestPairingCode() pode falhar com
+      // "Connection Closed" pois o socket ainda não está pronto.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       try {
         const code = await sock.requestPairingCode(phoneNumber);
 
