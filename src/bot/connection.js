@@ -105,7 +105,18 @@ async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDi
   logger.info({ secretName: SECRET_NAME, projectId: GCP_PROJECT_ID }, '[Connection] Inicializando auth state');
 
   // Carrega a sessão existente do Secret Manager ou inicializa credenciais em branco
-  const { state, saveCreds } = await useSecretManagerAuthState(GCP_PROJECT_ID, SECRET_NAME);
+  let { state, saveCreds } = await useSecretManagerAuthState(GCP_PROJECT_ID, SECRET_NAME);
+
+  // Se há phoneNumber (novo pareamento) e a sessão carregada não está registrada,
+  // existe uma sessão parcial de tentativa anterior. Recarregar com credenciais
+  // limpas evita que o WA rejeite com 401 ao receber chaves de sinal inconsistentes.
+  if (phoneNumber && !state.creds.registered) {
+    logger.info(
+      { secretName: SECRET_NAME },
+      '[Connection] Sessão não registrada detectada — recarregando com credenciais limpas para novo pareamento',
+    );
+    ({ state, saveCreds } = await useSecretManagerAuthState(GCP_PROJECT_ID, SECRET_NAME, { startFresh: true }));
+  }
 
   // Obtém a versão mais recente do protocolo WhatsApp Web
   const { version } = await fetchLatestBaileysVersion();

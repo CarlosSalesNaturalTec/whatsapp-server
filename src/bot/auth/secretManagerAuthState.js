@@ -267,10 +267,14 @@ async function saveSecretValue(secretName, projectId, payload) {
  */
 async function useSecretManagerAuthState(
   projectId,
-  secretName = 'whatsapp-baileys-auth'
+  secretName = 'whatsapp-baileys-auth',
+  { startFresh = false } = {}
 ) {
-  // Carrega o estado persistido ou inicializa do zero na primeira execução
-  const raw = await getSecretValue(secretName, projectId);
+  // startFresh = true: ignora sessão salva e inicializa do zero.
+  // Usado quando há sessão parcial (creds.registered = false) e o usuário
+  // solicita um novo Pairing Code — evita que o WA rejeite com 401 ao
+  // receber chaves de sinal inconsistentes de uma tentativa anterior.
+  const raw = startFresh ? null : await getSecretValue(secretName, projectId);
 
   let creds;
   let keys = {};
@@ -282,7 +286,12 @@ async function useSecretManagerAuthState(
     logger.info({ secretName }, '[AuthState] Sessão carregada do Secret Manager');
   } else {
     creds = initAuthCreds();
-    logger.info({ secretName }, '[AuthState] Nenhuma sessão encontrada — iniciando autenticação');
+    logger.info(
+      { secretName, startFresh },
+      startFresh
+        ? '[AuthState] Credenciais limpas — sessão parcial anterior ignorada'
+        : '[AuthState] Nenhuma sessão encontrada — iniciando autenticação',
+    );
   }
 
   /**
