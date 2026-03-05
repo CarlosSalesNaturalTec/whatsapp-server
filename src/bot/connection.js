@@ -84,15 +84,17 @@ const groupCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
  * @param {object}   options
  * @param {string}   options.phoneNumber    - Número E.164 sem '+' (ex: '5511999999999').
  *                                           Necessário apenas quando não há sessão registrada.
- * @param {Function} [options.onPairingCode]  - Chamado com o código gerado (string 'XXXX-XXXX')
- * @param {Function} [options.onConnected]    - Chamado quando connection === 'open'
- * @param {Function} [options.onDisconnected] - Chamado quando connection === 'close',
- *                                              recebe (shouldReconnect: boolean)
+ * @param {Function} [options.onPairingCode]      - Chamado com o código gerado (string 'XXXX-XXXX')
+ * @param {Function} [options.onConnected]      - Chamado quando connection === 'open'
+ * @param {Function} [options.onDisconnected]   - Chamado quando connection === 'close',
+ *                                                recebe (shouldReconnect: boolean)
+ * @param {Function} [options.onPairingCodeError] - Chamado quando requestPairingCode() falha;
+ *                                                  recebe (err: Error)
  *
  * @returns {Promise<import('baileys').WASocket>} Socket configurado e em processo de conexão
  * @throws {Error} Se GCP_PROJECT_ID não estiver definido ou o Secret Manager falhar
  */
-async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDisconnected } = {}) {
+async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDisconnected, onPairingCodeError } = {}) {
   // Valida pré-requisito de infraestrutura antes de qualquer operação de rede
   if (!GCP_PROJECT_ID) {
     const msg = '[Connection] Variável GCP_PROJECT_ID não definida. Configure antes de conectar.';
@@ -219,7 +221,10 @@ async function connectToWhatsApp({ phoneNumber, onPairingCode, onConnected, onDi
         onPairingCode?.(code);
       } catch (err) {
         logger.error({ err }, '[Connection] Erro ao solicitar Pairing Code');
-        pairingCodeRequested = false; // permite nova tentativa no próximo evento
+        // Bloqueia nova tentativa neste socket — o callback fecha o socket e
+        // o ConnectionManager transita para ERROR, encerrando este ciclo de vida.
+        pairingCodeRequested = true;
+        onPairingCodeError?.(err);
       }
     }
 

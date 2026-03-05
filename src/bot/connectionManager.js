@@ -247,6 +247,27 @@ class ConnectionManager {
         },
 
         /**
+         * Chamado por connection.js quando requestPairingCode() falha.
+         *
+         * Encerra o socket imediatamente e transita para ERROR — o usuário
+         * precisa tentar novamente pela UI. O onDisconnected que virá logo
+         * após (quando o socket fechar) é ignorado pois o status já é ERROR.
+         *
+         * @param {Error} err
+         */
+        onPairingCodeError: (err) => {
+          logger.error({ err }, '[Manager] Falha ao obter Pairing Code — encerrando socket');
+          const sock = this._sock;
+          this._sock = null;
+          this._setStatus(STATUS.ERROR);
+          if (sock) {
+            try { sock.end(); } catch (endErr) {
+              logger.warn({ endErr }, '[Manager] Erro ao fechar socket após falha no Pairing Code — ignorado');
+            }
+          }
+        },
+
+        /**
          * Chamado por connection.js quando connection.update === 'close'.
          *
          * Se shouldReconnect === true e o disconnect não foi intencional,
@@ -258,10 +279,20 @@ class ConnectionManager {
          * Se shouldReconnect === false (loggedOut / 401), a sessão foi revogada
          * pelo usuário no celular — exige nova autenticação via UI.
          *
+         * Se o status já for ERROR (falha no Pairing Code), o socket fechou
+         * como consequência do onPairingCodeError — ignora sem sobrescrever.
+         *
          * @param {boolean} shouldReconnect
          */
         onDisconnected: (shouldReconnect) => {
           this._sock = null;
+
+          // Socket fechou como consequência de falha no Pairing Code —
+          // status já está ERROR; não sobrescreve nem tenta reconectar.
+          if (this._status === STATUS.ERROR) {
+            this._intentionalDisconnect = false;
+            return;
+          }
 
           if (!this._intentionalDisconnect && shouldReconnect) {
             if (this._reconnectAttempts >= RECONNECT_MAX_TRIES) {
