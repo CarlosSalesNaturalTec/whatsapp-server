@@ -88,6 +88,8 @@ Criar uma Service Account dedicada com permissões mínimas (princípio do menor
 
 > Detalhes de criação e concessão de roles em [setup-gcp.md](./setup-gcp.md).
 
+> ⚠️ **OAuth Scope obrigatório:** Além dos roles IAM, a VM **deve** ser criada com o scope `cloud-platform` (`--scopes=cloud-platform`). Sem ele, o token de acesso gerado pela VM não terá autorização para chamar o Secret Manager, mesmo que os roles estejam corretamente configurados. O sintoma é o erro `ACCESS_TOKEN_SCOPE_INSUFFICIENT` nos logs da aplicação.
+
 ---
 
 ## 2. Criar a VM via gcloud
@@ -134,6 +136,13 @@ gcloud compute instances create whatsapp-server `
     --scopes=cloud-platform `
     --tags=http-server,https-server `
     --project=$PROJECT_ID
+
+# ⚠️ IMPORTANTE: --scopes=cloud-platform é obrigatório para acesso ao Secret Manager.
+# Sem ele, a aplicação falhará com ACCESS_TOKEN_SCOPE_INSUFFICIENT mesmo com os roles IAM corretos.
+# Se a VM foi criada sem este scope, é necessário pará-la e reconfigurar:
+#   gcloud compute instances stop whatsapp-server --zone=southamerica-east1-a
+#   gcloud compute instances set-service-account whatsapp-server --zone=southamerica-east1-a --scopes=cloud-platform
+#   gcloud compute instances start whatsapp-server --zone=southamerica-east1-a
 ```
 
 ### 2.3 Reservar IP externo estático

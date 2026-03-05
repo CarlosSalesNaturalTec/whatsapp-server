@@ -36,7 +36,7 @@ Antes de executar os comandos abaixo, garanta que:
    gcloud config set project SEU_PROJECT_ID
    ```
 
-3. A **VM do Compute Engine** já foi criada e está rodando com uma Service Account associada.
+3. A **VM do Compute Engine** já foi criada e está rodando com uma Service Account associada **e com o scope `cloud-platform` habilitado** (`--scopes=cloud-platform` no momento da criação). Sem este scope, o token OAuth da VM não terá acesso ao Secret Manager mesmo com os roles IAM corretos — ver Troubleshooting seção 7.
 
 4. As APIs necessárias estão habilitadas no projeto:
    ```bash
@@ -329,6 +329,30 @@ gcloud secrets versions destroy NUMERO `
   # Destruir versões antigas (mantenha apenas as últimas 2-3)
   gcloud secrets versions destroy NUMERO --secret="whatsapp-baileys-auth"
   ```
+
+---
+
+### Erro: `ACCESS_TOKEN_SCOPE_INSUFFICIENT` ao acessar o Secret Manager
+
+**Sintoma:** Log exibe `Request had insufficient authentication scopes` ou `ACCESS_TOKEN_SCOPE_INSUFFICIENT`.
+
+**Causa:** A VM foi criada **sem o scope `cloud-platform`**. Os roles IAM podem estar corretos, mas o token OAuth gerado pela VM não inclui o escopo necessário para chamar o Secret Manager.
+
+**Solução:** Pare a VM, reconfigure o scope e reinicie (PowerShell local):
+
+```powershell
+$VM   = "NOME_DA_VM"
+$ZONE = "southamerica-east1-a"
+
+gcloud compute instances stop $VM --zone=$ZONE --project=$PROJECT_ID
+gcloud compute instances set-service-account $VM `
+    --zone=$ZONE `
+    --scopes=cloud-platform `
+    --project=$PROJECT_ID
+gcloud compute instances start $VM --zone=$ZONE --project=$PROJECT_ID
+```
+
+> **Prevenção:** Sempre inclua `--scopes=cloud-platform` ao criar a VM (ver `docs/vmConfig.md` seção 2.2).
 
 ---
 

@@ -544,6 +544,29 @@ curl http://localhost:3000/api/whatsapp/status
 
 ---
 
+### Erro `ACCESS_TOKEN_SCOPE_INSUFFICIENT` no Secret Manager
+
+**Sintoma:** Log exibe `Request had insufficient authentication scopes` ou `ACCESS_TOKEN_SCOPE_INSUFFICIENT`.
+
+**Causa:** A VM foi criada sem o OAuth scope `cloud-platform`. Os roles IAM podem estar corretos, mas o token gerado pela VM não tem autorização para chamar o Secret Manager.
+
+**Solução (PowerShell local):**
+```powershell
+$VM   = "NOME_DA_VM"
+$ZONE = "southamerica-east1-a"
+
+gcloud compute instances stop $VM --zone=$ZONE --project=$PROJECT_ID
+gcloud compute instances set-service-account $VM `
+    --zone=$ZONE `
+    --scopes=cloud-platform `
+    --project=$PROJECT_ID
+gcloud compute instances start $VM --zone=$ZONE --project=$PROJECT_ID
+```
+
+> **Prevenção:** Sempre crie a VM com `--scopes=cloud-platform` (ver `docs/vmConfig.md` seção 2.2).
+
+---
+
 ### Bot para de responder após algum tempo
 
 **Sintoma:** Mensagens chegam mas não há resposta automática.
