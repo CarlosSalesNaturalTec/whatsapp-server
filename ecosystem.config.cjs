@@ -14,7 +14,7 @@ module.exports = {
       NODE_ENV:       'production',
       GCP_PROJECT_ID: 'natural-tecnologia',
       SECRET_NAME:    'whatsapp-baileys-auth',
-      PHONE_NUMBER:   '5571993416896',
+      PHONE_NUMBER:   '5571996939447',
       PORT:           '80',
       LOG_LEVEL:      'info',
     },
