@@ -25,6 +25,35 @@
 import logger from '../../utils/logger.js';
 
 // -----------------------------------------------------------------
+// Deduplicação de mensagens processadas
+// -----------------------------------------------------------------
+
+/**
+ * Cache de IDs de mensagens já processadas.
+ * Evita respostas duplicadas causadas por retry receipts do Baileys:
+ * quando uma mensagem falha na descriptografia (SessionError), o Baileys
+ * envia um retry receipt e o remetente re-envia com novo envelope — o que
+ * gera um segundo evento 'notify' com o mesmo conteúdo e mesmo key.id.
+ *
+ * Limitado a 200 IDs para evitar crescimento ilimitado em memória.
+ * Em uso normal, o bot processa poucas mensagens por hora.
+ */
+const processedIds = new Set();
+const MAX_PROCESSED_IDS = 200;
+
+function hasProcessed(id) {
+  return processedIds.has(id);
+}
+
+function markProcessed(id) {
+  if (processedIds.size >= MAX_PROCESSED_IDS) {
+    // Remove o ID mais antigo (primeiro inserido)
+    processedIds.delete(processedIds.values().next().value);
+  }
+  processedIds.add(id);
+}
+
+// -----------------------------------------------------------------
 // Utilitários de parsing de mensagem
 // -----------------------------------------------------------------
 
@@ -139,6 +168,14 @@ export function registerMessageHandler(sock) {
       // por outros dispositivos da mesma conta (multi-device), e para
       // confirmações de entrega das mensagens que o próprio bot enviou.
       if (msg.key.fromMe) continue;
+
+      // Descarta mensagens já processadas (proteção contra retry receipts do Baileys)
+      const msgId = msg.key.id;
+      if (hasProcessed(msgId)) {
+        logger.debug({ jid: msg.key.remoteJid, msgId }, '[MessageHandler] Mensagem duplicada ignorada (retry)');
+        continue;
+      }
+      markProcessed(msgId);
 
       /**
        * JID (WhatsApp ID) do remetente ou grupo de origem.
