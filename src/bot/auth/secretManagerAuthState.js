@@ -20,9 +20,14 @@
  * Criado em: 2026-02-25
  */
 
+import { gzip, gunzip } from 'node:zlib';
+import { promisify } from 'node:util';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { BufferJSON, initAuthCreds } from 'baileys';
 import logger from '../../utils/logger.js';
+
+const gzipAsync   = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 /**
  * Cliente singleton do Google Secret Manager.
@@ -118,7 +123,17 @@ async function getSecretValue(secretName, projectId) {
 
   try {
     const [version] = await client.accessSecretVersion({ name });
-    const value = version.payload?.data?.toString();
+    const rawBuffer = version.payload?.data;
+    if (!rawBuffer) return null;
+
+    // Tenta descomprimir (gzip) — fallback para string pura (dados legados não-comprimidos)
+    let value;
+    try {
+      const decompressed = await gunzipAsync(rawBuffer);
+      value = decompressed.toString('utf8');
+    } catch {
+      value = rawBuffer.toString('utf8');
+    }
 
     logger.debug({ secretName }, '[SecretManager] Secret lido com sucesso');
     return value;
@@ -199,9 +214,9 @@ async function destroyOldVersions(secretParent, latestVersionName) {
  */
 async function saveSecretValue(secretName, projectId, payload) {
   const parent = `projects/${projectId}/secrets/${secretName}`;
-  const data   = Buffer.from(payload, 'utf8');
+  const data   = await gzipAsync(Buffer.from(payload, 'utf8'));
 
-  logger.debug({ secretName }, '[SecretManager] Salvando nova versão do secret');
+  logger.debug({ secretName, compressedBytes: data.length }, '[SecretManager] Salvando nova versão do secret (gzip)');
 
   try {
     const [newVersion] = await client.addSecretVersion({ parent, payload: { data } });
