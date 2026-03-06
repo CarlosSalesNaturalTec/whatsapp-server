@@ -221,21 +221,18 @@ export function registerMessageHandler(sock) {
       // ---------------------------------------------------------------
 
       if (isCommand(body, '#iniciarBot#')) {
+        const resposta = 'Bot Natural Tecnologia iniciado com sucesso! Estamos online e prontos para atender. ✅';
 
-        /**
-         * Envia a resposta fixa 'Bot Iniciado' para o mesmo chat (jid) onde
-         * o comando foi recebido, seja ele um chat individual ou um grupo.
-         *
-         * O try/catch é essencial aqui: falhas no envio são comuns em cenários
-         * de rede instável, rate limiting do WhatsApp ou jid inválido.
-         * Erros não tratados interromperiam o loop e ignorariam mensagens
-         * subsequentes no mesmo evento messages.upsert.
-         */
         try {
-          await sock.sendMessage(jid, { text: 'Bot Iniciado' });
-          logger.info({ jid }, '[MessageHandler] Resposta "Bot Iniciado" enviada com sucesso');
+          // Simula digitação proporcional ao tamanho da resposta (50ms/caractere, máx 5s)
+          await sock.sendPresenceUpdate('composing', jid);
+          await new Promise((resolve) => setTimeout(resolve, Math.min(resposta.length * 50, 5000)));
+          await sock.sendPresenceUpdate('paused', jid);
+
+          await sock.sendMessage(jid, { text: resposta });
+          logger.info({ jid }, '[MessageHandler] Resposta enviada com sucesso');
         } catch (err) {
-          logger.error({ err, jid }, '[MessageHandler] Erro ao enviar resposta "Bot Iniciado"');
+          logger.error({ err, jid }, '[MessageHandler] Erro ao enviar resposta');
         }
       }
     }
