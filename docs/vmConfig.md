@@ -217,11 +217,16 @@ sudo npm install -g pm2
 echo 'GCP_PROJECT_ID=SEU_PROJECT_ID' | sudo tee -a /etc/environment
 source /etc/environment
 
-# 5. Clonar a aplicação
+# 5. Clonar a aplicação e instalar dependências do backend
 git clone https://github.com/seu-usuario/whatsapp-server.git /opt/whatsapp-server
 cd /opt/whatsapp-server && npm install
 
-# 6. Iniciar com PM2 usando ecosystem.config.cjs
+# 6. Gerar o build do frontend
+# O script já define NODE_ENV=development internamente para instalar devDependencies
+# (vite, tailwindcss). O backend/PM2 não são afetados — continuam com production.
+cd /opt/whatsapp-server && npm run build:frontend
+
+# 8. Iniciar com PM2 usando ecosystem.config.cjs
 pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup   # configura autostart após reboot — copie e execute o comando gerado

@@ -197,11 +197,12 @@ npm install
 ### Passo 6 — Instalar dependências e gerar build do frontend
 
 ```bash
-# Usando o script unificado do package.json raiz
 npm run build:frontend
 ```
 
-Este comando entra em `frontend/`, instala as dependências e gera o build de produção em `frontend/dist/`.
+Este comando entra em `frontend/`, instala as dependências (incluindo devDependencies) e gera o build de produção em `frontend/dist/`.
+
+> **Nota:** O script define `NODE_ENV=development` internamente durante o `npm install` do frontend — necessário para instalar o `vite` e `tailwindcss` que estão em `devDependencies`. O backend e o PM2 **não são afetados** e continuam com `NODE_ENV=production`.
 
 ### Passo 7 — Configurar variáveis de ambiente da VM
 

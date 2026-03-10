@@ -38,7 +38,7 @@ pm2 restart whatsapp-app          # Hard restart
 ```bash
 git pull
 npm install
-npm run build:frontend
+npm run build:frontend  # NODE_ENV=development is set internally by the script
 pm2 reload whatsapp-app
 ```
 
