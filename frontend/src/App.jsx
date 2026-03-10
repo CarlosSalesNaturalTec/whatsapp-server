@@ -15,10 +15,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import Header      from './components/Header.jsx';
-import HeroSection from './components/HeroSection.jsx';
-import Footer      from './components/Footer.jsx';
-import Settings    from './pages/Settings.jsx';
+import Header            from './components/Header.jsx';
+import HeroSection       from './components/HeroSection.jsx';
+import ProdutosSection   from './components/ProdutosSection.jsx';
+import AcoesSociaisSection from './components/AcoesSociaisSection.jsx';
+import Footer            from './components/Footer.jsx';
+import Settings          from './pages/Settings.jsx';
 
 /**
  * Componente raiz — detecta a rota atual e renderiza a página correspondente.
@@ -50,6 +52,8 @@ function App() {
       {/* Área principal de conteúdo */}
       <main className="flex-1 pt-16" id="inicio" aria-label="Conteúdo principal">
         <HeroSection />
+        <ProdutosSection />
+        <AcoesSociaisSection />
       </main>
 
       {/* Rodapé com informações de contato */}

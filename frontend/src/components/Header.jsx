@@ -63,10 +63,12 @@ function Header() {
   /** Fecha o menu após clicar em um link (navegação mobile) */
   const fecharMenu = () => setMenuAberto(false);
 
-  // /#servicos e /#contato funcionam tanto na landing quanto na página de configurações
+  // As âncoras funcionam tanto na landing quanto na página de configurações
   const navLinks = [
-    { href: '/#servicos', label: 'Serviços' },
-    { href: '/#contato',  label: 'Contato'  },
+    { href: '/#servicos',      label: 'Serviços'       },
+    { href: '/#produtos',      label: 'Produtos'       },
+    { href: '/#acoes-sociais', label: 'Ações Sociais'  },
+    { href: '/#contato',       label: 'Contato'        },
   ];
 
   return (
