@@ -69,8 +69,17 @@ app.use(whatsappRouter);
  * Serve os assets gerados pelo build do Vite (JS, CSS, imagens, fontes).
  * Requisições para /assets/*, /*.js, /*.css, etc. são atendidas diretamente.
  * maxAge 1 dia — os assets do Vite têm hash no nome, então cache longo é seguro.
+ * index.html nunca é cacheado (no-cache): ele referencia assets com hash e precisa
+ * ser sempre o mais recente para que novos deploys sejam servidos imediatamente.
  */
-app.use(express.static(FRONTEND_DIST, { maxAge: '1d' }));
+app.use(express.static(FRONTEND_DIST, {
+  maxAge: '1d',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 /**
  * Catch-all: qualquer rota não reconhecida retorna o index.html do React.
@@ -80,6 +89,7 @@ app.use(express.static(FRONTEND_DIST, { maxAge: '1d' }));
  * Deve ser registrado APÓS todos os outros middlewares e rotas de API.
  */
 app.get('/{*path}', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(join(FRONTEND_DIST, 'index.html'), (err) => {
     if (err) {
       logger.warn({ err, url: req.url }, '[HTTP] index.html não encontrado — frontend não foi buildado?');
