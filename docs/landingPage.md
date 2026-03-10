@@ -12,16 +12,21 @@ WhatsApp: (71) 9.9341-6896
 e-mail: naturalbahia@gmail.com
 
 # Produtos 
-* Secretaria On Line. Readme=.... Images=.... Depoimento do cliente + logo ou foto
+* Secretaria On Line. 
+    * Descrição: @docs\sistemas\secretaria\README.md
+    * Prints das telas disponíveis em : @docs\images\secretaria
 * IAReels
-* monitora marcas 
-    exemplo real com: politicos
-    exemplo real com empresa
-    exemplo real principal tema falado na cidade + filtro por temas
-    exemplo real principais temas falado na cidade por temas
+    * Descrição: docs\sistemas\iareels\README.md
+    * Prints das telas disponíveis em : @docs\images\secretaria
 
 # Ações Sociais
-* Robô Educa
+* Robô Educa 
+    * Descrição: @docs\sistemas\roboeduca\README.md
+    * Album de fotos : https://photos.app.goo.gl/yJiewdTTsNFtmF846 
+    * Call to action -> 
+        * Doações via chave pix: 51.730.395/0001-19
+        * Compre os nossos kits robóticos: https://produto.mercadolivre.com.br/MLB-4485131991-kit-de-robotica-programaco-e-inteligncia-artificial-ia-_JM?matt_tool=38524122#origin=share&sid=share
+        * Parte da arrecadação com a venda de kits robóticos é revertida na realização de oficinas gratuitas realizadas em comunidades carentes.
+
 * Inova comunidade
-* fotos google
-* call to action -> doe, compre
+    * Album de fotos : https://photos.app.goo.gl/1nXWMwBcur4wQXxM8
